@@ -165,25 +165,23 @@ fn count_commits(repo_path: &std::path::Path) -> Result<i32, GourceError> {
 }
 
 fn calculate_seconds_per_day(commit_count: i32) -> f64 {
-    // Target value: 0.005 seconds per day for 10,000 commits
-    let target_seconds: f64 = 0.0005;
-    let target_commits: f64 = 10000.0;
-
-    // Calculate the scaling factor to hit our target
-    let scaling_factor = (target_commits / target_seconds).powf(1.0 / 3.0);
-
-    // Calculate seconds per day
-    let seconds_per_day = (scaling_factor / (commit_count as f64).powf(1.0 / 3.0)).powi(2);
-
-    // Clamp the value to ensure it's within a reasonable range
-    let clamped_seconds = seconds_per_day.clamp(0.00001, 1.0);
+    let seconds_per_day = match commit_count {
+        0..=49 => 1.0,
+        50..=99 => 0.5,
+        100..=499 => 0.1,
+        500..=999 => 0.05,
+        1_000..=4_999 => 0.01,
+        5_000..=9_999 => 0.005,
+        10_000..=49_999 => 0.001,
+        _ => 0.0005,
+    };
 
     info!(
         "Calculated seconds per day: {} for {} commits",
-        clamped_seconds, commit_count
+        seconds_per_day, commit_count
     );
 
-    clamped_seconds
+    seconds_per_day
 }
 
 fn check_dependencies() -> Result<(), String> {
