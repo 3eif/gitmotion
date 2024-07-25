@@ -165,23 +165,26 @@ fn count_commits(repo_path: &std::path::Path) -> Result<i32, GourceError> {
 }
 
 fn calculate_seconds_per_day(commit_count: i32) -> f64 {
-    let seconds_per_day = match commit_count {
-        0..=49 => 1.0,
-        50..=99 => 0.5,
-        100..=499 => 0.1,
-        500..=999 => 0.05,
-        1_000..=4_999 => 0.01,
-        5_000..=9_999 => 0.005,
-        10_000..=49_999 => 0.001,
-        _ => 0.0005,
+    let target_duration = if commit_count < 60 {
+        commit_count as f64 // 1 second per commit for very small repos
+    } else {
+        75.0 // aim for 75 seconds (midpoint of 60-90 range)
     };
 
+    // Assuming an average of 1 commit per day
+    let seconds_per_day = target_duration / commit_count as f64;
+
+    // Clamp the value to ensure it's within a reasonable range
+    let clamped_seconds = seconds_per_day.clamp(0.001, 1.0);
+
     info!(
-        "Calculated seconds per day: {} for {} commits",
-        seconds_per_day, commit_count
+        "Calculated seconds per day: {} for {} commits. Estimated duration: {:.2} seconds",
+        clamped_seconds,
+        commit_count,
+        clamped_seconds * commit_count as f64
     );
 
-    seconds_per_day
+    clamped_seconds
 }
 
 fn check_dependencies() -> Result<(), String> {
