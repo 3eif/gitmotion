@@ -2,30 +2,39 @@
 FROM rust:latest AS builder
 
 # Set the working directory in the container
-WORKDIR /usr/src/app
+WORKDIR /usr/src/gitsight
 
-# Copy the API code into the container
-COPY api/ .
+# Copy the Cargo.toml and Cargo.lock files
+COPY api/Cargo.toml api/Cargo.lock ./api/
+
+# Copy the source code
+COPY api/src ./api/src
 
 # Build the application
+WORKDIR /usr/src/gitsight/api
 RUN cargo build --release
 
-# Use a compatible base image for the final image
-FROM debian:bullseye-slim
+FROM ubuntu:22.04
 
 # Install necessary dependencies
 RUN apt-get update && apt-get install -y \
-    git \
-    gource \
-    xvfb \
-    ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
+  git \
+  gource \
+  ffmpeg \
+  xvfb \
+  && rm -rf /var/lib/apt/lists/*
 
-# Copy the binary from the builder stage
-COPY --from=builder /usr/src/app/target/release/api /usr/local/bin/api
+# Copy the built executable from the builder stage
+COPY --from=builder /usr/src/gitsight/api/target/release/gitsight-api /usr/local/bin/gitsight-api
+
+# Create a directory for Gource videos
+RUN mkdir -p /gource_videos && chmod 777 /gource_videos
 
 # Set the working directory
 WORKDIR /usr/local/bin
 
+# Set the RUST_LOG environment variable
+ENV RUST_LOG=info
+
 # Run the binary
-CMD ["api"]
+CMD ["gitsight-api"]
