@@ -166,7 +166,7 @@ fn count_commits(repo_path: &std::path::Path) -> Result<i32, GourceError> {
 
 fn calculate_seconds_per_day(commit_count: i32) -> f64 {
     // Target value: 0.005 seconds per day for 10,000 commits
-    let target_seconds: f64 = 0.005;
+    let target_seconds: f64 = 0.0005;
     let target_commits: f64 = 10000.0;
 
     // Calculate the scaling factor to hit our target
