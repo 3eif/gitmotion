@@ -1,10 +1,8 @@
 use actix_web::{error::ResponseError, web, App, HttpResponse, HttpServer, Responder};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
-use std::time::{Duration, Instant};
+use std::process::Command;
 use thiserror::Error;
 use url::Url;
 
@@ -42,16 +40,6 @@ impl ResponseError for GourceError {
     }
 }
 
-fn check_dependencies() -> Result<(), String> {
-    let dependencies = vec!["git", "gource", "ffmpeg", "xvfb-run"];
-    for dep in dependencies {
-        if let Err(_) = Command::new(dep).arg("--version").output() {
-            return Err(format!("{} is not available", dep));
-        }
-    }
-    Ok(())
-}
-
 async fn generate_gource(repo_url: web::Json<GourceRequest>) -> impl Responder {
     info!(
         "Received request to generate Gource for repository: {}",
@@ -82,28 +70,9 @@ async fn generate_gource(repo_url: web::Json<GourceRequest>) -> impl Responder {
     // Define the output path for the video
     let output_file = PathBuf::from("/gource_videos/gource.mp4");
 
-    if let Err(e) = run_gource_with_progress(&temp_dir.path(), seconds_per_day, &output_file) {
-        error!("Gource generation failed: {:?}", e);
-        return Err(e);
-    }
-
-    info!(
-        "Successfully generated Gource visualization for: {}",
-        repo_url.repo_url
-    );
-
-    Ok(HttpResponse::Ok().json(GourceResponse {
-        video_url: "/gource_videos/gource.mp4".to_string(),
-    }))
-}
-
-fn run_gource_with_progress(
-    temp_dir: &std::path::Path,
-    seconds_per_day: f64,
-    output_file: &std::path::Path,
-) -> Result<(), GourceError> {
+    // Run Gource command
     let gource_command = format!(
-        "gource {} -1920x1080 \
+        "xvfb-run -a gource {} -1920x1080 \
         --seconds-per-day {} \
         --auto-skip-seconds 0.1 \
         --hide progress \
@@ -114,80 +83,36 @@ fn run_gource_with_progress(
         --hide filenames \
         --bloom-intensity 0.04 \
         --user-scale 1.0 \
-        --output-ppm-stream -",
-        temp_dir.to_str().unwrap(),
-        seconds_per_day
-    );
-
-    let ffmpeg_command = format!(
-        "ffmpeg -y -r 30 -f image2pipe -vcodec ppm -i - \
+        -o - | \
+        ffmpeg -y -r 30 -f image2pipe -vcodec ppm -i - \
         -vcodec libx264 -crf 19 -threads 0 -bf 0 {}",
+        temp_dir.path().to_str().unwrap(),
+        seconds_per_day,
         output_file.to_str().unwrap()
     );
 
-    info!("Starting Gource visualization generation");
-    let start_time = Instant::now();
-
-    let mut gource_process = Command::new("xvfb-run")
-        .arg("-a")
-        .arg("sh")
+    let output = Command::new("sh")
         .arg("-c")
         .arg(&gource_command)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| {
-            error!("Failed to spawn Gource command: {}", e);
-            GourceError::GourceGenerationFailed
-        })?;
+        .output()
+        .map_err(|_| GourceError::GourceGenerationFailed)?;
 
-    let mut ffmpeg_process = Command::new("sh")
-        .arg("-c")
-        .arg(&ffmpeg_command)
-        .stdin(gource_process.stdout.take().unwrap())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| {
-            error!("Failed to spawn FFmpeg command: {}", e);
-            GourceError::GourceGenerationFailed
-        })?;
-
-    let mut last_progress_time = Instant::now();
-
-    loop {
-        match (gource_process.try_wait(), ffmpeg_process.try_wait()) {
-            (Ok(Some(status)), _) if !status.success() => {
-                error!("Gource process failed with exit code: {:?}", status.code());
-                return Err(GourceError::GourceGenerationFailed);
-            }
-            (_, Ok(Some(status))) if !status.success() => {
-                error!("FFmpeg process failed with exit code: {:?}", status.code());
-                return Err(GourceError::GourceGenerationFailed);
-            }
-            (Ok(Some(_)), Ok(Some(_))) => {
-                info!("Gource visualization generation completed");
-                break;
-            }
-            _ => {
-                if last_progress_time.elapsed() >= Duration::from_secs(5) {
-                    info!(
-                        "Gource visualization in progress... ({}s elapsed)",
-                        start_time.elapsed().as_secs()
-                    );
-                    last_progress_time = Instant::now();
-                }
-                std::thread::sleep(Duration::from_secs(1));
-            }
-        }
+    if !output.status.success() {
+        error!(
+            "Gource generation failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return Err(GourceError::GourceGenerationFailed);
     }
 
-    let total_time = start_time.elapsed();
     info!(
-        "Gource visualization generation completed in {}s",
-        total_time.as_secs()
+        "Successfully generated Gource visualization for: {}",
+        repo_url.repo_url
     );
 
-    Ok(())
+    Ok(HttpResponse::Ok().json(GourceResponse {
+        video_url: "/gource_videos/gource.mp4".to_string(),
+    }))
 }
 
 fn clone_repository(repo_url: &str, temp_dir: &std::path::Path) -> Result<(), GourceError> {
@@ -244,13 +169,13 @@ fn calculate_seconds_per_day(commit_count: i32) -> f64 {
     let target_commits: f64 = 10000.0;
 
     // Calculate the scaling factor to hit our target
-    let scaling_factor = (target_commits * target_seconds).powf(0.5);
+    let scaling_factor = (target_commits / target_seconds).powf(1.0 / 3.0);
 
     // Calculate seconds per day
-    let seconds_per_day = scaling_factor / (commit_count as f64).sqrt();
+    let seconds_per_day = (scaling_factor / (commit_count as f64).powf(1.0 / 3.0)).powi(2);
 
     // Clamp the value to ensure it's within a reasonable range
-    let clamped_seconds = seconds_per_day.clamp(0.00001, 0.5);
+    let clamped_seconds = seconds_per_day.clamp(0.00001, 2.0);
 
     info!(
         "Calculated seconds per day: {} for {} commits",
@@ -263,19 +188,6 @@ fn calculate_seconds_per_day(commit_count: i32) -> f64 {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
-
-    let output_dir = std::path::Path::new("/gource_videos");
-    if !output_dir.exists() {
-        fs::create_dir_all(output_dir)?;
-    }
-
-    match check_dependencies() {
-        Ok(_) => info!("All dependencies are available"),
-        Err(e) => {
-            error!("Dependency check failed: {}", e);
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
-        }
-    }
 
     info!("Starting server at http://0.0.0.0:8081");
     HttpServer::new(|| {
