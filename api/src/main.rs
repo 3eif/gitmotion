@@ -1,6 +1,7 @@
 use actix_web::{error::ResponseError, web, App, HttpResponse, HttpServer, Responder};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
+use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use thiserror::Error;
@@ -175,7 +176,7 @@ fn calculate_seconds_per_day(commit_count: i32) -> f64 {
     let seconds_per_day = (scaling_factor / (commit_count as f64).powf(1.0 / 3.0)).powi(2);
 
     // Clamp the value to ensure it's within a reasonable range
-    let clamped_seconds = seconds_per_day.clamp(0.00001, 2.0);
+    let clamped_seconds = seconds_per_day.clamp(0.00001, 1);
 
     info!(
         "Calculated seconds per day: {} for {} commits",
@@ -185,9 +186,32 @@ fn calculate_seconds_per_day(commit_count: i32) -> f64 {
     clamped_seconds
 }
 
+fn check_dependencies() -> Result<(), String> {
+    let dependencies = vec!["git", "gource", "ffmpeg", "xvfb-run"];
+    for dep in dependencies {
+        if let Err(_) = Command::new(dep).arg("--version").output() {
+            return Err(format!("{} is not available", dep));
+        }
+    }
+    Ok(())
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
+
+    let output_dir = std::path::Path::new("/gource_videos");
+    if !output_dir.exists() {
+        fs::create_dir_all(output_dir)?;
+    }
+
+    match check_dependencies() {
+        Ok(_) => info!("All dependencies are available"),
+        Err(e) => {
+            error!("Dependency check failed: {}", e);
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
+        }
+    }
 
     info!("Starting server at http://0.0.0.0:8081");
     HttpServer::new(|| {
