@@ -176,7 +176,7 @@ fn calculate_seconds_per_day(commit_count: i32) -> f64 {
     let seconds_per_day = (scaling_factor / (commit_count as f64).powf(1.0 / 3.0)).powi(2);
 
     // Clamp the value to ensure it's within a reasonable range
-    let clamped_seconds = seconds_per_day.clamp(0.00001, 1);
+    let clamped_seconds = seconds_per_day.clamp(0.00001, 1.0);
 
     info!(
         "Calculated seconds per day: {} for {} commits",
