@@ -167,6 +167,7 @@ async fn generate_gource(repo_url: web::Json<GourceRequest>) -> impl Responder {
         --seconds-per-day {} \
         --auto-skip-seconds 0.01 \
         {} \
+        --hide progress \
         --max-user-speed 500 \
         --key \
         --output-framerate 30 \
