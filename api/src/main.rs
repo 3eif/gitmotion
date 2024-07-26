@@ -44,78 +44,6 @@ impl ResponseError for GourceError {
     }
 }
 
-fn clone_repository(repo_url: &str, temp_dir: &std::path::Path) -> Result<(), GourceError> {
-    info!("Cloning repository: {}", repo_url);
-    let output = Command::new("git")
-        .arg("clone")
-        .arg(repo_url)
-        .arg(temp_dir)
-        .output()
-        .map_err(|_| GourceError::CloneFailed)?;
-
-    if !output.status.success() {
-        error!(
-            "Git clone failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        return Err(GourceError::CloneFailed);
-    }
-
-    info!("Successfully cloned repository: {}", repo_url);
-    Ok(())
-}
-
-fn count_days_and_commits(repo_path: &std::path::Path) -> Result<(i32, i32), GourceError> {
-    info!(
-        "Counting days with commits and total commits in repository at: {:?}",
-        repo_path
-    );
-
-    // Count total commits
-    let commit_output = Command::new("git")
-        .args(&["rev-list", "--count", "HEAD"])
-        .current_dir(repo_path)
-        .output()
-        .map_err(|_| GourceError::CommitCountFailed)?;
-
-    if !commit_output.status.success() {
-        error!(
-            "Git commit count failed: {}",
-            String::from_utf8_lossy(&commit_output.stderr)
-        );
-        return Err(GourceError::CommitCountFailed);
-    }
-
-    let total_commits: i32 = String::from_utf8_lossy(&commit_output.stdout)
-        .trim()
-        .parse()
-        .map_err(|_| GourceError::CommitCountFailed)?;
-
-    // Count days with commits
-    let log_output = Command::new("git")
-        .args(&["log", "--format=%ad", "--date=short"])
-        .current_dir(repo_path)
-        .output()
-        .map_err(|_| GourceError::CommitCountFailed)?;
-
-    if !log_output.status.success() {
-        error!(
-            "Git log failed: {}",
-            String::from_utf8_lossy(&log_output.stderr)
-        );
-        return Err(GourceError::CommitCountFailed);
-    }
-
-    let days_with_commits: HashSet<NaiveDate> = String::from_utf8_lossy(&log_output.stdout)
-        .lines()
-        .filter_map(|line| NaiveDate::parse_from_str(line, "%Y-%m-%d").ok())
-        .collect();
-
-    let count_days = days_with_commits.len() as i32;
-
-    Ok((count_days, total_commits))
-}
-
 async fn generate_gource(repo_url: web::Json<GourceRequest>) -> impl Responder {
     let start_time = Instant::now();
 
@@ -142,9 +70,9 @@ async fn generate_gource(repo_url: web::Json<GourceRequest>) -> impl Responder {
     let clone_duration = clone_start.elapsed();
     info!("Repository cloning took {:?}", clone_duration);
 
-    // Count days with commits and total commits
+    // Count days with commits
     let count_start = Instant::now();
-    let (days_with_commits, total_commits) = count_days_and_commits(&temp_dir.path())?;
+    let days_with_commits = count_days_with_commits(&temp_dir.path())?;
     let count_duration = count_start.elapsed();
     info!("Counting days with commits took {:?}", count_duration);
 
@@ -154,26 +82,19 @@ async fn generate_gource(repo_url: web::Json<GourceRequest>) -> impl Responder {
     // Define the output path for the video
     let output_file = PathBuf::from("/gource_videos/gource.mp4");
 
-    // Conditionally hide filenames based on total commits
-    let hide_filenames = if total_commits > 100 {
-        "--hide filenames"
-    } else {
-        ""
-    };
-
     // Run Gource command
     let gource_command = format!(
         "xvfb-run -a gource {} -1920x1080 \
         --seconds-per-day {} \
         --auto-skip-seconds 0.01 \
-        {} \
         --hide progress \
         --max-user-speed 500 \
         --key \
         --output-framerate 30 \
         --multi-sampling \
+        --hide filenames \
         --bloom-intensity 0.2 \
-        --user-scale 0.75 \
+        --user-scale 1.0 \
         --elasticity 0.01 \
         --background-colour 000000 \
         --dir-font-size 12 \
@@ -183,7 +104,6 @@ async fn generate_gource(repo_url: web::Json<GourceRequest>) -> impl Responder {
         -vcodec libx264 -crf 19 -threads 0 -bf 0 {}",
         temp_dir.path().to_str().unwrap(),
         seconds_per_day,
-        hide_filenames,
         output_file.to_str().unwrap()
     );
 
@@ -215,6 +135,56 @@ async fn generate_gource(repo_url: web::Json<GourceRequest>) -> impl Responder {
     Ok(HttpResponse::Ok().json(GourceResponse {
         video_url: "/gource_videos/gource.mp4".to_string(),
     }))
+}
+
+fn clone_repository(repo_url: &str, temp_dir: &std::path::Path) -> Result<(), GourceError> {
+    info!("Cloning repository: {}", repo_url);
+    let output = Command::new("git")
+        .arg("clone")
+        .arg(repo_url)
+        .arg(temp_dir)
+        .output()
+        .map_err(|_| GourceError::CloneFailed)?;
+
+    if !output.status.success() {
+        error!(
+            "Git clone failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return Err(GourceError::CloneFailed);
+    }
+
+    info!("Successfully cloned repository: {}", repo_url);
+    Ok(())
+}
+
+fn count_days_with_commits(repo_path: &std::path::Path) -> Result<i32, GourceError> {
+    info!(
+        "Counting days with commits in repository at: {:?}",
+        repo_path
+    );
+    let output = Command::new("git")
+        .args(&["log", "--format=%ad", "--date=short"])
+        .current_dir(repo_path)
+        .output()
+        .map_err(|_| GourceError::CommitCountFailed)?;
+
+    if !output.status.success() {
+        error!(
+            "Git log failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return Err(GourceError::CommitCountFailed);
+    }
+
+    let days_with_commits: HashSet<NaiveDate> = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(|line| NaiveDate::parse_from_str(line, "%Y-%m-%d").ok())
+        .collect();
+
+    let count = days_with_commits.len() as i32;
+
+    Ok(count)
 }
 
 fn calculate_seconds_per_day(days_with_commits: i32) -> f64 {
