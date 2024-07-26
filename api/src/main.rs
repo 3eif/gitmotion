@@ -86,15 +86,18 @@ async fn generate_gource(repo_url: web::Json<GourceRequest>) -> impl Responder {
     let gource_command = format!(
         "xvfb-run -a gource {} -1920x1080 \
         --seconds-per-day {} \
-        --auto-skip-seconds 0.1 \
+        --auto-skip-seconds 0.01 \
         --hide progress \
         --max-user-speed 500 \
         --key \
         --output-framerate 30 \
         --multi-sampling \
         --hide filenames \
-        --bloom-intensity 0.04 \
-        --user-scale 1.0 \
+        --bloom-intensity 0.2 \
+        --user-scale 0.75 \
+        --elasticity 0.01 \
+        --background-colour 000000 \
+        --dir-font-size 12 \
         --stop-at-end \
         -o - | \
         ffmpeg -y -r 30 -f image2pipe -vcodec ppm -i - \
@@ -156,7 +159,6 @@ fn clone_repository(repo_url: &str, temp_dir: &std::path::Path) -> Result<(), Go
 }
 
 fn count_days_with_commits(repo_path: &std::path::Path) -> Result<i32, GourceError> {
-    let start_time = Instant::now();
     info!(
         "Counting days with commits in repository at: {:?}",
         repo_path
@@ -182,8 +184,6 @@ fn count_days_with_commits(repo_path: &std::path::Path) -> Result<i32, GourceErr
 
     let count = days_with_commits.len() as i32;
 
-    let duration = start_time.elapsed();
-    info!("Counted {} days with commits in {:?}", count, duration);
     Ok(count)
 }
 
@@ -193,7 +193,7 @@ fn calculate_seconds_per_day(days_with_commits: i32) -> f64 {
     // Calculate seconds per day
     let seconds_per_day = TARGET_DURATION / days_with_commits as f64;
 
-    let clamped_seconds = seconds_per_day.clamp(0.01, 2.0);
+    let clamped_seconds = seconds_per_day.clamp(0.00001, 2.0) / 1.5;
 
     info!(
         "Calculated seconds per day: {} for {} days with commits. Estimated duration: {:.2} seconds",

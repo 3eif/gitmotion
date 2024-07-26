@@ -1,28 +1,28 @@
 # Use the official Rust image as a parent image
 FROM rust:latest AS builder
-
 # Set the working directory in the container
 WORKDIR /usr/src/gitsight
-
 # Copy the Cargo.toml and Cargo.lock files
 COPY api/Cargo.toml api/Cargo.lock ./api/
-
 # Copy the source code
 COPY api/src ./api/src
-
 # Build the application
 WORKDIR /usr/src/gitsight/api
 RUN cargo build --release
 
+# Use a smaller base image for the final stage
 FROM ubuntu:22.04
 
-# Install necessary dependencies
-RUN apt-get update && apt-get install -y \
+# Install necessary dependencies and clean up in a single layer
+RUN apt-get update && \
+  apt-get install -y --no-install-recommends \
   git \
   gource \
   ffmpeg \
   xvfb \
-  && rm -rf /var/lib/apt/lists/*
+  ca-certificates && \
+  apt-get clean && \
+  rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Copy the built executable from the builder stage
 COPY --from=builder /usr/src/gitsight/api/target/release/gitsight-api /usr/local/bin/gitsight-api
