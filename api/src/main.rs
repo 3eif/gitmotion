@@ -93,7 +93,7 @@ async fn generate_gource(repo_url: web::Json<GourceRequest>) -> impl Responder {
         --output-framerate 30 \
         --multi-sampling \
         --hide filenames \
-        --bloom-intensity 0.2 \
+        --bloom-intensity 0.1 \
         --user-scale 1.0 \
         --elasticity 0.01 \
         --background-colour 000000 \
