@@ -1,9 +1,12 @@
 use actix_web::{error::ResponseError, web, App, HttpResponse, HttpServer, Responder};
+use chrono::NaiveDate;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::time::Instant;
 use thiserror::Error;
 use url::Url;
 
@@ -42,6 +45,8 @@ impl ResponseError for GourceError {
 }
 
 async fn generate_gource(repo_url: web::Json<GourceRequest>) -> impl Responder {
+    let start_time = Instant::now();
+
     info!(
         "Received request to generate Gource for repository: {}",
         repo_url.repo_url
@@ -60,13 +65,16 @@ async fn generate_gource(repo_url: web::Json<GourceRequest>) -> impl Responder {
     info!("Created temporary directory: {:?}", temp_dir.path());
 
     // Clone the repository
+    let clone_start = Instant::now();
     clone_repository(&repo_url.repo_url, &temp_dir.path())?;
+    let clone_duration = clone_start.elapsed();
+    info!("Repository cloning took {:?}", clone_duration);
 
-    // Count commits
-    let commit_count = count_commits(&temp_dir.path())?;
+    // Count days with commits
+    let days_with_commits = count_days_with_commits(&temp_dir.path())?;
 
-    // Determine seconds_per_day based on commit count
-    let seconds_per_day = calculate_seconds_per_day(commit_count);
+    // Determine seconds_per_day based on days with commits
+    let seconds_per_day = calculate_seconds_per_day(days_with_commits);
 
     // Define the output path for the video
     let output_file = PathBuf::from("/gource_videos/gource.mp4");
@@ -84,6 +92,7 @@ async fn generate_gource(repo_url: web::Json<GourceRequest>) -> impl Responder {
         --hide filenames \
         --bloom-intensity 0.04 \
         --user-scale 1.0 \
+        --stop-at-end \
         -o - | \
         ffmpeg -y -r 30 -f image2pipe -vcodec ppm -i - \
         -vcodec libx264 -crf 19 -threads 0 -bf 0 {}",
@@ -92,6 +101,7 @@ async fn generate_gource(repo_url: web::Json<GourceRequest>) -> impl Responder {
         output_file.to_str().unwrap()
     );
 
+    let gource_start = Instant::now();
     let output = Command::new("sh")
         .arg("-c")
         .arg(&gource_command)
@@ -106,10 +116,15 @@ async fn generate_gource(repo_url: web::Json<GourceRequest>) -> impl Responder {
         return Err(GourceError::GourceGenerationFailed);
     }
 
+    let gource_duration = gource_start.elapsed();
+    let total_duration = start_time.elapsed();
+
     info!(
         "Successfully generated Gource visualization for: {}",
         repo_url.repo_url
     );
+    info!("Gource visualization generation took {:?}", gource_duration);
+    info!("Total process took {:?}", total_duration);
 
     Ok(HttpResponse::Ok().json(GourceResponse {
         video_url: "/gource_videos/gource.mp4".to_string(),
@@ -137,51 +152,49 @@ fn clone_repository(repo_url: &str, temp_dir: &std::path::Path) -> Result<(), Go
     Ok(())
 }
 
-fn count_commits(repo_path: &std::path::Path) -> Result<i32, GourceError> {
-    info!("Counting commits in repository at: {:?}", repo_path);
+fn count_days_with_commits(repo_path: &std::path::Path) -> Result<i32, GourceError> {
+    info!(
+        "Counting days with commits in repository at: {:?}",
+        repo_path
+    );
     let output = Command::new("git")
-        .arg("rev-list")
-        .arg("--count")
-        .arg("HEAD")
+        .args(&["log", "--format=%ad", "--date=short"])
         .current_dir(repo_path)
         .output()
         .map_err(|_| GourceError::CommitCountFailed)?;
 
     if !output.status.success() {
         error!(
-            "Git commit count failed: {}",
+            "Git log failed: {}",
             String::from_utf8_lossy(&output.stderr)
         );
         return Err(GourceError::CommitCountFailed);
     }
 
-    let count = String::from_utf8_lossy(&output.stdout)
-        .trim()
-        .parse::<i32>()
-        .map_err(|_| GourceError::CommitCountFailed)?;
+    let days_with_commits: HashSet<NaiveDate> = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(|line| NaiveDate::parse_from_str(line, "%Y-%m-%d").ok())
+        .collect();
 
-    info!("Counted {} commits", count);
+    let count = days_with_commits.len() as i32;
+
+    info!("Counted {} days with commits", count);
     Ok(count)
 }
 
-fn calculate_seconds_per_day(commit_count: i32) -> f64 {
-    let target_duration = if commit_count < 60 {
-        commit_count as f64 // 1 second per commit for very small repos
-    } else {
-        75.0 // aim for 75 seconds (midpoint of 60-90 range)
-    };
+fn calculate_seconds_per_day(days_with_commits: i32) -> f64 {
+    const TARGET_DURATION: f64 = 60.0;
 
-    // Assuming an average of 1 commit per day
-    let seconds_per_day = target_duration / commit_count as f64;
+    // Calculate seconds per day
+    let seconds_per_day = TARGET_DURATION / days_with_commits as f64;
 
-    // Clamp the value to ensure it's within a reasonable range
-    let clamped_seconds = seconds_per_day.clamp(0.001, 1.0);
+    let clamped_seconds = seconds_per_day.clamp(0.01, 2.0);
 
     info!(
-        "Calculated seconds per day: {} for {} commits. Estimated duration: {:.2} seconds",
+        "Calculated seconds per day: {} for {} days with commits. Estimated duration: {:.2} seconds",
         clamped_seconds,
-        commit_count,
-        clamped_seconds * commit_count as f64
+        days_with_commits,
+        clamped_seconds * days_with_commits as f64
     );
 
     clamped_seconds
