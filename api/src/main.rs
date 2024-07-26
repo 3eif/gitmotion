@@ -71,7 +71,10 @@ async fn generate_gource(repo_url: web::Json<GourceRequest>) -> impl Responder {
     info!("Repository cloning took {:?}", clone_duration);
 
     // Count days with commits
+    let count_start = Instant::now();
     let days_with_commits = count_days_with_commits(&temp_dir.path())?;
+    let count_duration = count_start.elapsed();
+    info!("Counting days with commits took {:?}", count_duration);
 
     // Determine seconds_per_day based on days with commits
     let seconds_per_day = calculate_seconds_per_day(days_with_commits);
@@ -153,6 +156,7 @@ fn clone_repository(repo_url: &str, temp_dir: &std::path::Path) -> Result<(), Go
 }
 
 fn count_days_with_commits(repo_path: &std::path::Path) -> Result<i32, GourceError> {
+    let start_time = Instant::now();
     info!(
         "Counting days with commits in repository at: {:?}",
         repo_path
@@ -178,7 +182,8 @@ fn count_days_with_commits(repo_path: &std::path::Path) -> Result<i32, GourceErr
 
     let count = days_with_commits.len() as i32;
 
-    info!("Counted {} days with commits", count);
+    let duration = start_time.elapsed();
+    info!("Counted {} days with commits in {:?}", count, duration);
     Ok(count)
 }
 
