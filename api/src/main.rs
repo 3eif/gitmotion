@@ -91,7 +91,7 @@ async fn generate_gource(repo_url: web::Json<GourceRequest>) -> impl Responder {
 
     // Run Gource command
     let gource_command = format!(
-        "xvfb-run -a gource {} -1920x1080 \
+        "xvfb-run -a gource {} -1920x1200 \
         --seconds-per-day {} \
         --auto-skip-seconds 0.01 \
         {} \
@@ -108,7 +108,10 @@ async fn generate_gource(repo_url: web::Json<GourceRequest>) -> impl Responder {
         --stop-at-end \
         -o - | \
         ffmpeg -y -r 30 -f image2pipe -vcodec ppm -i - \
-        -vcodec libx264 -crf 19 -threads 0 -bf 0 {}",
+        -vcodec libx264 -preset fast -crf 23 -movflags +faststart \
+        -pix_fmt yuv420p -vf \"pad=ceil(iw/2)*2:ceil(ih/2)*2\" \
+        -acodec aac -b:a 128k \
+        {}",
         temp_dir.path().to_str().unwrap(),
         seconds_per_day,
         hide_filenames,
@@ -223,13 +226,11 @@ fn calculate_seconds_per_day(days_with_commits: i32) -> f64 {
     // Calculate seconds per day
     let seconds_per_day = TARGET_DURATION / days_with_commits as f64;
 
-    let clamped_seconds = seconds_per_day.clamp(0.00001, 2.0) / 1.5;
+    let clamped_seconds = seconds_per_day.clamp(0.00001, 2.0) / 2.75;
 
     info!(
-        "Calculated seconds per day: {} for {} days with commits. Estimated duration: {:.2} seconds",
-        clamped_seconds,
-        days_with_commits,
-        clamped_seconds * days_with_commits as f64
+        "Calculated seconds per day: {} for {} days with commits.",
+        clamped_seconds, days_with_commits,
     );
 
     clamped_seconds
