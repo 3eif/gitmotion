@@ -1,44 +1,139 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
+import useSWR from "swr";
+import GourceProgress from "./gource-progress";
+
+interface JobStatus {
+  status: string;
+  progress: number;
+  video_url: string | null;
+  error: string | null;
+}
+
+const fetcher = async (url: string) => {
+  const res = await fetch(url, {
+    headers: {
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+  });
+  if (!res.ok) {
+    throw new Error("An error occurred while fetching the data.");
+  }
+  return res.json();
+};
+
+// Type guard function to validate the job status
+function isValidJobStatus(data: any): data is JobStatus {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    typeof data.status === "string" &&
+    typeof data.progress === "number" &&
+    (typeof data.video_url === "string" || data.video_url === null) &&
+    (typeof data.error === "string" || data.error === null)
+  );
+}
 
 export default function Input() {
-  const router = useRouter();
   const [githubUrl, setGithubUrl] = useState("");
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
+  const {
+    data: jobStatus,
+    error,
+    mutate,
+  } = useSWR<JobStatus>(jobId ? `/api/gource/status/${jobId}` : null, fetcher, {
+    refreshInterval: 5000,
+    revalidateOnFocus: false,
+    dedupingInterval: 0,
+    onError: (err) => console.error("SWR Error:", err),
+  });
+
+  useEffect(() => {
+    console.log("Current jobId:", jobId);
+  }, [jobId]);
+
+  useEffect(() => {
+    if (jobStatus) {
+      console.log("Job Status:", jobStatus);
+    }
+  }, [jobStatus]);
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    // router.push(`/some-path/${githubUrl}`);
+    setIsLoading(true);
+    try {
+      console.log("Submitting repo URL:", githubUrl);
+      const response = await fetch("/api/gource/start", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ repo_url: githubUrl }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to start Gource generation");
+      }
+      const data = await response.json();
+      console.log("Received job ID:", data.job_id);
+      setJobId(data.job_id);
+      mutate(); // Trigger an immediate refetch of the job status
+    } catch (error) {
+      console.error("Failed to start Gource generation:", error);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className="relative min-w-full flex w-full md:w-4/5 justify-center"
-    >
-      <input
-        type="text"
-        name="githubUrl"
-        value={githubUrl}
-        onChange={(e) => setGithubUrl(e.target.value)}
-        className="w-full appearance-none rounded-lg border-[1.5px] border-white/10 bg-transparent py-2 pl-3 pr-20 text-white placeholder-white/20 outline-none transition-all hover:border-white/20 focus:border-white/30"
-        placeholder="https://github.com/username/repo"
-      />
+    <div className="w-full max-w-md mx-auto">
+      <form onSubmit={onSubmit} className="mb-4">
+        <div className="flex items-center border-b border-gray-300 py-2">
+          <input
+            type="text"
+            value={githubUrl}
+            onChange={(e) => setGithubUrl(e.target.value)}
+            placeholder="https://github.com/username/repo"
+            className="appearance-none bg-transparent border-none w-full text-gray-700 mr-3 py-1 px-2 leading-tight focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={!githubUrl || isLoading}
+            className={`flex-shrink-0 bg-blue-500 hover:bg-blue-700 border-blue-500 hover:border-blue-700 text-sm border-4 text-white py-1 px-2 rounded ${
+              !githubUrl || isLoading ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+          >
+            {isLoading ? "Generating..." : "Generate"}
+          </button>
+        </div>
+      </form>
+      {jobStatus && (
+        <div className="mt-4">
+          <GourceProgress
+            progress={jobStatus.progress * 100}
+            message={jobStatus.status}
+          />
+          {jobStatus.error && (
+            <p className="text-red-500 mt-2">{jobStatus.error}</p>
+          )}
+          {jobStatus.video_url && (
+            <video
+              className="mt-4 w-full"
+              controls
+              src={jobStatus.video_url}
+            ></video>
+          )}
+        </div>
+      )}
 
-      <div className="absolute inset-y-0 right-0 flex items-center pr-4">
-        <button
-          type="submit"
-          className={`select-none text-xs font-medium uppercase transition-colors ${
-            githubUrl.length === 0
-              ? "text-white/20 cursor-not-allowed"
-              : "text-white/20 hover:text-white/40"
-          }`}
-          disabled={githubUrl.length === 0}
-        >
-          Submit
-        </button>
-      </div>
-    </form>
+      {error && (
+        <p className="text-red-500 mt-2">
+          Error fetching job status: {error.message}
+        </p>
+      )}
+    </div>
   );
 }

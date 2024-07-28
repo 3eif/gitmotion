@@ -64,22 +64,6 @@ export default function Home() {
               View Demo
             </button>
           </div>
-          <div className="w-full max-w-full relative py-6 lg:px-24 md:px-16 xl:px-40 px-5">
-            <video
-              ref={videoRef}
-              className="w-full h-full object-cover aspect-video rounded-xl p-2 border-[1.5px] border-white/10 bg-transparent"
-              controls
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              poster="/video-placeholder.jpg"
-            >
-              <source src="/gource.mp4" type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
-          </div>
           <ExampleGenerations />
         </div>
       </main>
