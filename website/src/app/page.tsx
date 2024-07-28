@@ -1,12 +1,82 @@
 "use client";
 
 import ExampleGenerations from "@/components/example-generations";
-import Input from "@/components/input";
+import GourceInput from "@/components/gource-input";
+import GourceVideo from "@/components/gource-video";
 import { Spotlight } from "@/components/spotlight";
 import Image from "next/image";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import useSWR from "swr";
 
-export default function Home() {
+interface JobStatus {
+  status: string;
+  progress: number;
+  video_url: string | null;
+  error: string | null;
+}
+
+const fetcher = async (url: string) => {
+  const res = await fetch(url, {
+    headers: {
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+  });
+  if (!res.ok) {
+    throw new Error("An error occurred while fetching the data.");
+  }
+  return res.json();
+};
+
+export default function Page() {
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const {
+    data: jobStatus,
+    error,
+    mutate,
+  } = useSWR<JobStatus>(jobId ? `/api/gource/status/${jobId}` : null, fetcher, {
+    refreshInterval: 5000,
+    revalidateOnFocus: false,
+    dedupingInterval: 1000,
+    onError: (err) => console.error("SWR Error:", err),
+  });
+
+  useEffect(() => {
+    console.log("Current jobId:", jobId);
+  }, [jobId]);
+
+  useEffect(() => {
+    if (jobStatus) {
+      console.log("Job Status:", jobStatus);
+    }
+  }, [jobStatus]);
+
+  async function onSubmit(githubUrl: string) {
+    setIsLoading(true);
+    try {
+      console.log("Submitting repo URL:", githubUrl);
+      const response = await fetch("/api/gource/start", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ repo_url: githubUrl }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to start Gource generation");
+      }
+      const data = await response.json();
+      console.log("Received job ID:", data.job_id);
+      setJobId(data.job_id);
+      mutate(); // Trigger an immediate refetch of the job status
+    } catch (error) {
+      console.error("Failed to start Gource generation:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const scrollToVideo = () => {
@@ -56,14 +126,19 @@ export default function Home() {
               Generate beautiful visualizations of your Git repository history
               right in your browser.
             </p>
-            <Input />
-            <button
+            <GourceInput onSubmit={onSubmit} isLoading={isLoading} />
+            {/* <button
               onClick={scrollToVideo}
               className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
             >
               View Demo
-            </button>
+            </button> */}
           </div>
+          <GourceVideo
+            jobStatus={jobStatus ?? null}
+            jobId={jobId}
+            error={error}
+          />
           <ExampleGenerations />
         </div>
       </main>

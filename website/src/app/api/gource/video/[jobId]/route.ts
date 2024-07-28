@@ -8,26 +8,30 @@ export async function GET(
 ) {
   try {
     const jobId = params.jobId;
-    console.log("Fetching status for job:", jobId);
-
-    const response = await fetch(`${RUST_SERVER_URL}/job-status/${jobId}`, {
+    const response = await fetch(`${RUST_SERVER_URL}/video/${jobId}`, {
       cache: "no-store",
     });
 
     if (!response.ok) {
       if (response.status === 404) {
-        return NextResponse.json({ error: "Job not found" }, { status: 404 });
+        return NextResponse.json({ error: "Video not found" }, { status: 404 });
       }
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const data = await response.json();
-    console.log("Received status from Rust server:", data);
-    return NextResponse.json(data);
+    const videoBuffer = await response.arrayBuffer();
+
+    return new NextResponse(videoBuffer, {
+      status: 200,
+      headers: {
+        "Content-Type": "video/mp4",
+        "Content-Disposition": `inline; filename="gource_${jobId}.mp4"`,
+      },
+    });
   } catch (error) {
-    console.error("Error fetching job status:", error);
+    console.error("Error fetching video:", error);
     return NextResponse.json(
-      { error: "Failed to fetch job status" },
+      { error: "Failed to fetch video" },
       { status: 500 }
     );
   }
