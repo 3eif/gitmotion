@@ -1,5 +1,6 @@
 "use client";
 
+import ExampleGenerations from "@/components/example-generations";
 import Input from "@/components/input";
 import { Spotlight } from "@/components/spotlight";
 import Image from "next/image";
@@ -47,7 +48,7 @@ export default function Home() {
           fill="#ffffff70"
         /> */}
         <div className="flex flex-col items-center justify-center text-center mx-auto w-full">
-          <div className="py-10 max-w-7xl space-y-5">
+          <div className="py-10 max-w-7xl space-y-5 px-5">
             <h1 className="text-4xl md:text-7xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-b from-neutral-50 to-neutral-500 bg-opacity-50">
               Gitmotion
             </h1>
@@ -63,10 +64,10 @@ export default function Home() {
               View Demo
             </button>
           </div>
-          <div className="w-full max-w-full relative py-6 px-40">
+          <div className="w-full max-w-full relative py-6 lg:px-24 md:px-16 xl:px-40 px-5">
             <video
               ref={videoRef}
-              className="w-full h-full object-cover aspect-video"
+              className="w-full h-full object-cover aspect-video rounded-xl p-2 border-[1.5px] border-white/10 bg-transparent"
               controls
               autoPlay
               muted
@@ -79,6 +80,7 @@ export default function Home() {
               Your browser does not support the video tag.
             </video>
           </div>
+          <ExampleGenerations />
         </div>
       </main>
     </>
