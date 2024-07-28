@@ -1,6 +1,6 @@
 export default function ExampleGenerations() {
   return (
-    <div className="flex flex-col mx-auto w-full py-10 space-y-5">
+    <div className="flex flex-col mx-auto w-full pt-10 space-y-5">
       <h2 className="text-2xl font-semibold text-left mt-10">
         Example Generations
       </h2>

@@ -1,6 +1,7 @@
 "use client";
 
 import ExampleGenerations from "@/components/example-generations";
+import Footer from "@/components/footer";
 import GourceInput from "@/components/gource-input";
 import GourceVideo from "@/components/gource-video";
 import { useState, useRef, useEffect } from "react";
@@ -107,9 +108,12 @@ export default function Page() {
 
   return (
     <>
-      <main className="flex min-h-screen flex-col items-center justify-center gap-7 pt-6 pb-14">
+      <main className="flex min-h-screen flex-col items-center justify-center gap-7 pt-6">
         <div className="flex flex-col items-center justify-center text-center mx-auto w-full">
           <div className="py-5 max-w-7xl space-y-5 px-5">
+            <div className="font-normal text-sm text-neutral-300 px-4 py-2 rounded-full border border-blue-500/30 bg-gradient-to-b from-blue-400/10 to-blue-900/10 inline-block">
+              <strong>45</strong> visualizations generated and counting
+            </div>
             <h1 className="text-4xl md:text-7xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-b from-neutral-50 to-neutral-500 bg-opacity-50">
               Gitmotion
             </h1>
@@ -130,6 +134,7 @@ export default function Page() {
           </div>
         </div>
       </main>
+      <Footer />
     </>
   );
 }

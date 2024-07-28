@@ -39,3 +39,7 @@ body::after {
 body::before {
   filter: url(#noiseFilter);
 }
+
+footer {
+  @apply bg-black bg-[radial-gradient(ellipse_85%_100%_at_54%_90%,rgba(77,97,255,0.25),rgba(255,255,255,0))] text-white !important;
+}
