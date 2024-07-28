@@ -1,10 +1,14 @@
 use actix_cors::Cors;
-use actix_web::{web, App, HttpResponse, HttpServer, Responder};
+use actix_files::NamedFile;
+use actix_web::http::header::ContentDisposition;
+use actix_web::Result;
+use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use chrono::NaiveDate;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::fs;
+use std::fs::{self, File};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
@@ -172,7 +176,7 @@ async fn process_gource(
     };
 
     update_job_status(&job_store, &job_id, "Generating Gource visualization", 0.5).await;
-    let output_file = PathBuf::from("/gource_videos/gource.mp4");
+    let output_file = PathBuf::from(format!("/gource_videos/gource_{}.mp4", job_id));
     let gource_start = Instant::now();
 
     // Use tokio::task::spawn_blocking for CPU-intensive tasks
@@ -211,7 +215,7 @@ async fn process_gource(
     {
         let mut store = job_store.lock().await;
         if let Some(status) = store.get_mut(&job_id) {
-            status.video_url = Some("/gource_videos/gource.mp4".to_string());
+            status.video_url = Some(format!("/gource_videos/gource_{}.mp4", job_id));
             info!("Set video_url for job {}: {:?}", job_id, status.video_url);
         } else {
             error!("Failed to find job {} in store to set video_url", job_id);
@@ -243,7 +247,7 @@ async fn update_job_status(job_store: &JobStore, job_id: &str, status: &str, pro
         job_status.status = status.to_string();
         job_status.progress = progress.min(1.0); // Cap progress at 1.0
         if status == "Completed" {
-            job_status.video_url = Some("/gource_videos/gource.mp4".to_string());
+            job_status.video_url = Some(format!("/gource_videos/gource_{}.mp4", job_id));
         }
     }
 }
@@ -392,6 +396,19 @@ fn check_dependencies() -> Result<(), String> {
     Ok(())
 }
 
+async fn serve_video(req: HttpRequest, job_id: web::Path<String>) -> Result<HttpResponse> {
+    let video_path = PathBuf::from(format!("/gource_videos/gource_{}.mp4", job_id));
+    if video_path.exists() {
+        Ok(NamedFile::open(video_path)?
+            .set_content_type(mime::APPLICATION_OCTET_STREAM)
+            .into_response(&req))
+    } else {
+        Ok(HttpResponse::NotFound().json(serde_json::json!({
+            "error": "Video not found"
+        })))
+    }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
@@ -421,6 +438,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(job_store.clone())
             .service(web::resource("/start-gource").route(web::post().to(start_gource)))
             .service(web::resource("/job-status/{job_id}").route(web::get().to(get_job_status)))
+            .service(web::resource("/video/{job_id}").route(web::get().to(serve_video)))
             .service(web::resource("/health").route(web::get().to(health_check)))
     })
     .bind("0.0.0.0:8081")?

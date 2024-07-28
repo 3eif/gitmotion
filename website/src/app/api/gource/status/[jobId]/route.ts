@@ -2,14 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 const RUST_SERVER_URL = "http://localhost:8081";
 
-// Interface for the job status
-interface JobStatus {
-  status: string;
-  progress: number;
-  video_url: string | null;
-  error: string | null;
-}
-
 export async function GET(
   request: NextRequest,
   { params }: { params: { jobId: string } }
@@ -27,9 +19,8 @@ export async function GET(
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const data: JobStatus = await response.json();
+    const data = await response.json();
     console.log("Received status from Rust server:", data);
-
     return NextResponse.json(data);
   } catch (error) {
     console.error("Error fetching job status:", error);

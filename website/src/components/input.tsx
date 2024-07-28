@@ -24,18 +24,6 @@ const fetcher = async (url: string) => {
   return res.json();
 };
 
-// Type guard function to validate the job status
-function isValidJobStatus(data: any): data is JobStatus {
-  return (
-    typeof data === "object" &&
-    data !== null &&
-    typeof data.status === "string" &&
-    typeof data.progress === "number" &&
-    (typeof data.video_url === "string" || data.video_url === null) &&
-    (typeof data.error === "string" || data.error === null)
-  );
-}
-
 export default function Input() {
   const [githubUrl, setGithubUrl] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
@@ -61,6 +49,15 @@ export default function Input() {
       console.log("Job Status:", jobStatus);
     }
   }, [jobStatus]);
+
+  useEffect(() => {
+    return () => {
+      // Clean up the Blob URL when the component unmounts
+      if (jobStatus?.video_url) {
+        URL.revokeObjectURL(jobStatus.video_url);
+      }
+    };
+  }, [jobStatus?.video_url]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -119,13 +116,15 @@ export default function Input() {
           {jobStatus.error && (
             <p className="text-red-500 mt-2">{jobStatus.error}</p>
           )}
-          {jobStatus.video_url && (
-            <video
-              className="mt-4 w-full"
-              controls
-              src={jobStatus.video_url}
-            ></video>
-          )}
+          {jobStatus &&
+            jobStatus.status === "Completed" &&
+            jobStatus.video_url && (
+              <video
+                className="mt-4 w-full"
+                controls
+                src={`http://localhost:8081/video/${jobId}`}
+              ></video>
+            )}
         </div>
       )}
 
