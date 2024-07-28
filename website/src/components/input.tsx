@@ -87,19 +87,22 @@ export default function Input() {
 
   return (
     <div className="w-full max-w-md mx-auto">
-      <form onSubmit={onSubmit} className="mb-4">
-        <div className="flex items-center border-b border-gray-300 py-2">
-          <input
-            type="text"
-            value={githubUrl}
-            onChange={(e) => setGithubUrl(e.target.value)}
-            placeholder="https://github.com/username/repo"
-            className="appearance-none bg-transparent border-none w-full text-gray-700 mr-3 py-1 px-2 leading-tight focus:outline-none"
-          />
+      <form
+        onSubmit={onSubmit}
+        className="relative min-w-full flex w-full md:w-4/5 justify-center"
+      >
+        <input
+          type="text"
+          value={githubUrl}
+          onChange={(e) => setGithubUrl(e.target.value)}
+          placeholder="https://github.com/username/repo"
+          className="w-full appearance-none rounded-lg border-[1.5px] border-white/10 bg-transparent py-2 pl-3 pr-20 text-white placeholder-white/20 outline-none transition-all hover:border-white/20 focus:border-white/30"
+        />
+        <div className="absolute inset-y-0 right-0 flex items-center pr-4">
           <button
             type="submit"
             disabled={!githubUrl || isLoading}
-            className={`flex-shrink-0 bg-blue-500 hover:bg-blue-700 border-blue-500 hover:border-blue-700 text-sm border-4 text-white py-1 px-2 rounded ${
+            className={`select-none text-xs font-medium uppercase transition-colors ${
               !githubUrl || isLoading ? "opacity-50 cursor-not-allowed" : ""
             }`}
           >
@@ -119,11 +122,13 @@ export default function Input() {
           {jobStatus &&
             jobStatus.status === "Completed" &&
             jobStatus.video_url && (
-              <video
-                className="mt-4 w-full"
-                controls
-                src={`http://localhost:8081/video/${jobId}`}
-              ></video>
+              <div className="w-full max-w-full relative py-6 px-40">
+                <video
+                  className="w-full h-full object-cover aspect-video"
+                  controls
+                  src={`http://localhost:8081/video/${jobId}`}
+                ></video>
+              </div>
             )}
         </div>
       )}
