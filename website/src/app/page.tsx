@@ -3,8 +3,6 @@
 import ExampleGenerations from "@/components/example-generations";
 import GourceInput from "@/components/gource-input";
 import GourceVideo from "@/components/gource-video";
-import { Spotlight } from "@/components/spotlight";
-import Image from "next/image";
 import { useState, useRef, useEffect } from "react";
 import useSWR from "swr";
 
@@ -31,6 +29,7 @@ const fetcher = async (url: string) => {
 export default function Page() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const videoRef = useRef<HTMLDivElement>(null);
 
   const {
     data: jobStatus,
@@ -50,6 +49,9 @@ export default function Page() {
   useEffect(() => {
     if (jobStatus) {
       console.log("Job Status:", jobStatus);
+      if (jobStatus.status === "Completed" && videoRef.current) {
+        smoothScrollTo(videoRef.current, 850);
+      }
     }
   }, [jobStatus]);
 
@@ -77,13 +79,6 @@ export default function Page() {
       setIsLoading(false);
     }
   }
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-
-  const scrollToVideo = () => {
-    if (videoRef.current) {
-      smoothScrollTo(videoRef.current, 850); // 1500ms duration for slower scroll
-    }
-  };
 
   const smoothScrollTo = (element: HTMLElement, duration: number) => {
     const targetPosition =
@@ -112,13 +107,9 @@ export default function Page() {
 
   return (
     <>
-      <main className="flex min-h-screen flex-col items-center justify-center gap-7 pt-8 pb-14">
-        {/* <Spotlight
-          className="left-0 top-20 md:-top-20 md:left-60"
-          fill="#ffffff70"
-        /> */}
+      <main className="flex min-h-screen flex-col items-center justify-center gap-7 pt-6 pb-14">
         <div className="flex flex-col items-center justify-center text-center mx-auto w-full">
-          <div className="py-10 max-w-7xl space-y-5 px-5">
+          <div className="py-5 max-w-7xl space-y-5 px-5">
             <h1 className="text-4xl md:text-7xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-b from-neutral-50 to-neutral-500 bg-opacity-50">
               Gitmotion
             </h1>
@@ -127,19 +118,16 @@ export default function Page() {
               right in your browser.
             </p>
             <GourceInput onSubmit={onSubmit} isLoading={isLoading} />
-            {/* <button
-              onClick={scrollToVideo}
-              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-            >
-              View Demo
-            </button> */}
           </div>
-          <GourceVideo
-            jobStatus={jobStatus ?? null}
-            jobId={jobId}
-            error={error}
-          />
-          <ExampleGenerations />
+          <div className="xl:px-40 lg:px-28 md:px-20 sm:px-14 px-8">
+            <GourceVideo
+              jobStatus={jobStatus ?? null}
+              jobId={jobId}
+              error={error}
+              videoRef={videoRef}
+            />
+            <ExampleGenerations />
+          </div>
         </div>
       </main>
     </>

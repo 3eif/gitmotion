@@ -1,6 +1,5 @@
 use actix_cors::Cors;
 use actix_files::NamedFile;
-use actix_web::http::header::ContentDisposition;
 use actix_web::Result;
 use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use chrono::NaiveDate;
@@ -8,7 +7,6 @@ use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
-use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
@@ -209,7 +207,6 @@ async fn process_gource(
     // Wait for the update task to finish
     let _ = update_task.await;
 
-    // Update the job status with the video URL and mark as completed
     update_job_status(&job_store, &job_id, "Completed", 1.0).await;
 
     {
@@ -279,7 +276,6 @@ fn count_days_and_commits(repo_path: &Path) -> Result<(i32, i32), GourceError> {
         repo_path
     );
 
-    // Count total commits
     let commit_output = Command::new("git")
         .args(&["rev-list", "--count", "HEAD"])
         .current_dir(repo_path)
