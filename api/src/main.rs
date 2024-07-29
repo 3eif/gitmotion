@@ -27,10 +27,16 @@ struct GourceResponse {
     job_id: String,
 }
 
+#[derive(Serialize, Clone, Copy, PartialEq, Debug)]
+enum ProgressStep {
+    InitializingProject = 1,
+    AnalyzingHistory = 2,
+    GeneratingVisualization = 3,
+}
+
 #[derive(Serialize, Clone)]
 struct JobStatus {
-    status: String,
-    progress: f32,
+    step: ProgressStep,
     video_url: Option<String>,
     error: Option<String>,
 }
@@ -65,8 +71,7 @@ async fn start_gource(
         store.insert(
             job_id.clone(),
             JobStatus {
-                status: "Initializing".to_string(),
-                progress: 0.0,
+                step: ProgressStep::InitializingProject,
                 video_url: None,
                 error: None,
             },
@@ -82,7 +87,7 @@ async fn start_gource(
         {
             let mut store = job_store_clone.lock().await;
             if let Some(status) = store.get_mut(&job_id_clone) {
-                status.status = "Failed".to_string();
+                status.step = ProgressStep::GeneratingVisualization;
                 status.error = Some(e.to_string());
             }
         }
@@ -99,8 +104,8 @@ async fn get_job_status(
     match store.get(job_id.as_str()) {
         Some(status) => {
             info!(
-                "Returning job status for {}: status={}, progress={}, video_url={:?}",
-                job_id, status.status, status.progress, status.video_url
+                "Returning job status for {}: step={:?}, video_url={:?}",
+                job_id, status.step, status.video_url
             );
             HttpResponse::Ok().json(status.clone())
         }
@@ -120,47 +125,20 @@ async fn process_gource(
 ) -> Result<(), GourceError> {
     let start_time = Instant::now();
 
-    // Start a background task for periodic updates
-    let job_store_clone = job_store.clone();
-    let job_id_clone = job_id.clone();
-    let (tx, mut rx) = tokio::sync::mpsc::channel(1);
-    let update_task = tokio::spawn(async move {
-        let mut interval = interval(Duration::from_secs(1));
-        loop {
-            tokio::select! {
-                _ = interval.tick() => {
-                    let elapsed = start_time.elapsed().as_secs_f32();
-                    update_job_status(
-                        &job_store_clone,
-                        &job_id_clone,
-                        "Processing",
-                        elapsed / 60.0,
-                    )
-                    .await;
-                }
-                _ = rx.recv() => {
-                    break;
-                }
-            }
-        }
-    });
-
-    update_job_status(&job_store, &job_id, "Validating URL", 0.1).await;
+    update_job_status(&job_store, &job_id, ProgressStep::InitializingProject).await;
     let url = Url::parse(&repo_url).map_err(|_| GourceError::InvalidUrl)?;
     if url.host_str() != Some("github.com") {
         return Err(GourceError::UnsupportedRepository);
     }
 
-    update_job_status(&job_store, &job_id, "Creating temporary directory", 0.2).await;
     let temp_dir = tempfile::TempDir::new().map_err(|_| GourceError::TempDirCreationFailed)?;
 
-    update_job_status(&job_store, &job_id, "Cloning repository", 0.3).await;
     let clone_start = Instant::now();
     clone_repository(&repo_url, temp_dir.path())?;
     let clone_duration = clone_start.elapsed();
     info!("Repository cloning took {:?}", clone_duration);
 
-    update_job_status(&job_store, &job_id, "Counting commits", 0.4).await;
+    update_job_status(&job_store, &job_id, ProgressStep::AnalyzingHistory).await;
     let count_start = Instant::now();
     let (days_with_commits, total_commits) = count_days_and_commits(temp_dir.path())?;
     let count_duration = count_start.elapsed();
@@ -173,7 +151,7 @@ async fn process_gource(
         ""
     };
 
-    update_job_status(&job_store, &job_id, "Generating Gource visualization", 0.5).await;
+    update_job_status(&job_store, &job_id, ProgressStep::GeneratingVisualization).await;
     let output_file = PathBuf::from(format!("/gource_videos/gource_{}.mp4", job_id));
     let gource_start = Instant::now();
 
@@ -202,50 +180,28 @@ async fn process_gource(
     let total_duration = start_time.elapsed();
     info!("Total process took {:?}", total_duration);
 
-    // Signal the update task to stop
-    let _ = tx.send(()).await;
-    // Wait for the update task to finish
-    let _ = update_task.await;
-
-    update_job_status(&job_store, &job_id, "Completed", 1.0).await;
-
-    {
-        let mut store = job_store.lock().await;
-        if let Some(status) = store.get_mut(&job_id) {
-            status.video_url = Some(format!("/gource_videos/gource_{}.mp4", job_id));
-            info!("Set video_url for job {}: {:?}", job_id, status.video_url);
-        } else {
-            error!("Failed to find job {} in store to set video_url", job_id);
-        }
-    }
-
-    // Verify the job status after setting
-    {
-        let store = job_store.lock().await;
-        if let Some(status) = store.get(&job_id) {
-            info!(
-                "Final job status for {}: status: {}, progress: {}, video_url: {:?}",
-                job_id, status.status, status.progress, status.video_url
-            );
-        } else {
-            error!(
-                "Failed to find job {} in store for final status check",
-                job_id
-            );
-        }
-    }
+    update_job_status(&job_store, &job_id, ProgressStep::GeneratingVisualization).await;
+    set_video_url(
+        &job_store,
+        &job_id,
+        &format!("/gource_videos/gource_{}.mp4", job_id),
+    )
+    .await;
 
     Ok(())
 }
 
-async fn update_job_status(job_store: &JobStore, job_id: &str, status: &str, progress: f32) {
+async fn update_job_status(job_store: &JobStore, job_id: &str, step: ProgressStep) {
     let mut store = job_store.lock().await;
     if let Some(job_status) = store.get_mut(job_id) {
-        job_status.status = status.to_string();
-        job_status.progress = progress.min(1.0); // Cap progress at 1.0
-        if status == "Completed" {
-            job_status.video_url = Some(format!("/gource_videos/gource_{}.mp4", job_id));
-        }
+        job_status.step = step;
+    }
+}
+
+async fn set_video_url(job_store: &JobStore, job_id: &str, video_url: &str) {
+    let mut store = job_store.lock().await;
+    if let Some(job_status) = store.get_mut(job_id) {
+        job_status.video_url = Some(video_url.to_string());
     }
 }
 

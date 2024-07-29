@@ -3,14 +3,14 @@
 import ExampleGenerations from "@/components/example-generations";
 import Footer from "@/components/footer";
 import GourceInput from "@/components/gource-input";
+import { ProgressStep } from "@/components/gource-progress";
 import GourceVideo from "@/components/gource-video";
 import { ChevronDownIcon } from "@heroicons/react/16/solid";
 import { useState, useRef, useEffect } from "react";
 import useSWR from "swr";
 
 interface JobStatus {
-  status: string;
-  progress: number;
+  step: ProgressStep;
   video_url: string | null;
   error: string | null;
 }
@@ -25,7 +25,11 @@ const fetcher = async (url: string) => {
   if (!res.ok) {
     throw new Error("An error occurred while fetching the data.");
   }
-  return res.json();
+  const data = await res.json();
+  if (typeof data.step === "string") {
+    data.step = ProgressStep[data.step as keyof typeof ProgressStep];
+  }
+  return data;
 };
 
 const ArrowButton = ({
@@ -56,42 +60,47 @@ export default function Page() {
   const [isLoading, setIsLoading] = useState(false);
   const [isArrowVisible, setIsArrowVisible] = useState(true);
   const [hasScrolled, setHasScrolled] = useState(false);
+  const [lastValidJobStatus, setLastValidJobStatus] =
+    useState<JobStatus | null>(null);
+  const [isJobCompleted, setIsJobCompleted] = useState(false);
+
   const videoRef = useRef<HTMLDivElement>(null);
   const exampleGenerationsRef = useRef<HTMLDivElement>(null);
-
-  const [isJobCompleted, setIsJobCompleted] = useState(false);
 
   const {
     data: jobStatus,
     error,
     mutate,
-  } = useSWR<JobStatus>(
-    jobId && !isJobCompleted ? `/api/gource/status/${jobId}` : null,
-    fetcher,
-    {
-      refreshInterval: (data) => {
-        if (data?.status === "Completed" || data?.status === "Failed") {
-          return 0;
-        }
-        return 5000;
-      },
-      revalidateOnFocus: false,
-      dedupingInterval: 1000,
-      onSuccess: (data) => {
-        if (data?.status === "Completed" || data?.status === "Failed") {
+  } = useSWR<JobStatus>(jobId ? `/api/gource/status/${jobId}` : null, fetcher, {
+    refreshInterval: (data) => {
+      if (data?.video_url || data?.error) {
+        return 0;
+      }
+      return 5000;
+    },
+    revalidateOnFocus: false,
+    dedupingInterval: 1000,
+    onSuccess: (data) => {
+      if (data) {
+        console.log("Raw job status data:", data);
+        console.log("Parsed step:", data.step);
+        console.log("Parsed step type:", typeof data.step);
+        setLastValidJobStatus(data);
+        if (data.video_url || data.error) {
           setIsJobCompleted(true);
         }
-      },
-      onError: (err) => console.error("SWR Error:", err),
-    }
-  );
+      }
+    },
+    onError: (err) => console.error("SWR Error:", err),
+  });
 
   useEffect(() => {
     if (jobStatus) {
       console.log("Job Status:", jobStatus);
-      if (jobStatus.status === "Completed" && videoRef.current) {
+      if (jobStatus.video_url && videoRef.current) {
         smoothScrollTo(videoRef.current, 850);
         setIsJobCompleted(true);
+        setIsArrowVisible(false); // Hide the arrow when video is loaded
       }
     }
   }, [jobStatus]);
@@ -114,6 +123,7 @@ export default function Page() {
 
   async function onSubmit(githubUrl: string) {
     setIsLoading(true);
+    setIsArrowVisible(true); // Reset arrow visibility on new submission
     try {
       console.log("Submitting repo URL:", githubUrl);
       const response = await fetch("/api/gource/start", {
@@ -170,11 +180,18 @@ export default function Page() {
     }
   };
 
+  const isGenerating =
+    lastValidJobStatus &&
+    !lastValidJobStatus.video_url &&
+    !lastValidJobStatus.error;
+
+  const shouldShowArrow = isArrowVisible && !lastValidJobStatus?.video_url;
+
   return (
     <>
-      <main className="flex min-h-screen flex-col items-center justify-center gap-7 pt-6 pb-20">
-        <div className="flex flex-col items-center justify-center text-center mx-auto w-full">
-          <div className="py-5 max-w-7xl space-y-5 px-5">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-7 pt-6 pb-20">
+        <div className="flex flex-col items-center justify-center text-center mx-auto w-full max-w-7xl">
+          <div className="w-full space-y-5 duration-1000 ease-in-out animate-in fade-in slide-in-from-top-5">
             <div className="font-normal text-sm text-neutral-300 px-4 py-2 rounded-full border border-blue-500/30 bg-gradient-to-b from-blue-400/10 to-blue-900/10 inline-block">
               <strong>45</strong> visualizations generated and counting
             </div>
@@ -185,29 +202,34 @@ export default function Page() {
               Generate beautiful visualizations of your Git repository history
               right in your browser.
             </p>
-            <GourceInput onSubmit={onSubmit} isLoading={isLoading} />
-          </div>
-
-          <div className="xl:px-40 lg:px-28 md:px-20 sm:px-14 px-8">
-            <GourceVideo
-              jobStatus={jobStatus ?? null}
-              jobId={jobId}
-              error={error}
-              videoRef={videoRef}
-            />
+            <div className="w-full max-w-xl mx-auto">
+              <GourceInput
+                onSubmit={onSubmit}
+                isLoading={isLoading}
+                isGenerating={isGenerating || false}
+              />
+            </div>
           </div>
         </div>
-      </main>
+        <GourceVideo
+          jobStatus={lastValidJobStatus}
+          jobId={jobId}
+          error={error}
+          videoRef={videoRef}
+        />
+      </div>
+      <ArrowButton
+        onClick={scrollToExampleGenerations}
+        isVisible={shouldShowArrow}
+      />
       <ArrowButton
         onClick={scrollToExampleGenerations}
         isVisible={isArrowVisible}
       />
-      <div className="xl:px-40 lg:px-28 md:px-20 sm:px-14 px-8">
-        <div ref={exampleGenerationsRef}>
-          <ExampleGenerations />
-        </div>
-        <Footer />
+      <div ref={exampleGenerationsRef} className="px-8 max-w-7xl mx-auto">
+        <ExampleGenerations />
       </div>
+      <Footer />
     </>
   );
 }

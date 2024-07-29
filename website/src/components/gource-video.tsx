@@ -1,11 +1,11 @@
 "use client";
 
-import GourceProgress from "./gource-progress";
+import { ArrowDownTrayIcon } from "@heroicons/react/20/solid";
+import GourceProgress, { ProgressStep } from "./gource-progress";
 
 interface GourceVideoProps {
   jobStatus: {
-    status: string;
-    progress: number;
+    step: ProgressStep;
     video_url: string | null;
     error: string | null;
   } | null;
@@ -20,33 +20,53 @@ export default function GourceVideo({
   error,
   videoRef,
 }: GourceVideoProps) {
+  const handleDownload = () => {
+    if (jobId) {
+      const downloadUrl = `http://localhost:3000/api/gource/video/${jobId}`;
+      window.open(downloadUrl, "_blank");
+    }
+  };
+
   return (
-    <div>
+    <div className="w-full">
       {jobStatus && (
         <div>
-          {jobStatus.status !== "Completed" && (
-            <GourceProgress
-              progress={jobStatus.progress * 100}
-              message={jobStatus.status}
-            />
+          {jobStatus.video_url === null && (
+            <div className="w-full max-w-xl mx-auto">
+              <GourceProgress currentStep={jobStatus.step} />
+            </div>
           )}
           {jobStatus.error && (
             <p className="text-red-500 mt-2">{jobStatus.error}</p>
           )}
-          {jobStatus.status === "Completed" && jobStatus.video_url && (
-            <div className="py-6 w-full">
-              <div
-                ref={videoRef}
-                className="rounded-2xl border-[1.5px] border-white/10 bg-black overflow-hidden"
-              >
-                <video
-                  className="w-full h-auto"
-                  controls
-                  src={`http://localhost:3000/api/gource/video/954762ae-0e89-48c6-9e84-78fdbf9bd0ea`}
-                />
+          {jobStatus.step === ProgressStep.GeneratingVisualization &&
+            jobStatus.video_url && (
+              <div className="py-6 max-w-7xl p-8 mx-auto">
+                <div
+                  ref={videoRef}
+                  className="rounded-2xl border-[1.5px] border-white/10 bg-black overflow-hidden relative"
+                >
+                  <button
+                    onClick={handleDownload}
+                    className="absolute top-3 right-3
+             bg-gradient-to-b from-gray-400/20 to-gray-700/20 
+             hover:from-gray-400/30 hover:to-gray-700/30
+             rounded-lg p-2 
+             transition-all duration-200 ease-in-out
+             backdrop-blur-sm"
+                    aria-label="Download video"
+                  >
+                    <ArrowDownTrayIcon className="h-6 w-6 text-white/70" />
+                  </button>
+
+                  <video
+                    className="w-full h-auto"
+                    controls
+                    src={`http://localhost:3000/api/gource/video/${jobId}`}
+                  />
+                </div>
               </div>
-            </div>
-          )}
+            )}
         </div>
       )}
 
