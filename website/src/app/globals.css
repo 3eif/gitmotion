@@ -41,5 +41,5 @@ body::before {
 }
 
 footer {
-  @apply bg-black bg-[radial-gradient(ellipse_85%_100%_at_54%_90%,rgba(77,97,255,0.25),rgba(255,255,255,0))] text-white !important;
+  @apply bg-black bg-[radial-gradient(ellipse_85%_100%_at_54%_90%,rgba(77,97,255,0.2),rgba(255,255,255,0))] text-white !important;
 }

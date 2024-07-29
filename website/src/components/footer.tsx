@@ -1,6 +1,6 @@
 export default function Footer() {
   return (
-    <footer className="w-full mx-auto mt-auto pt-16 pb-8 bg-gradient-to-t from-blue-400/10 to-blue-900/10 xl:px-40 lg:px-28 md:px-20 sm:px-14 px-8">
+    <footer className="w-full mx-auto mt-auto pt-16 pb-8 bg-gradient-to-t from-blue-400/10 to-blue-900/10">
       <div className="max-w-7xl mx-auto border-t border-gray-600 pt-6">
         <div className="flex justify-between items-center text-sm text-neutral-200 px-2">
           <p className="text-md">
