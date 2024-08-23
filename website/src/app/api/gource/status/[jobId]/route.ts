@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const RUST_SERVER_URL = "http://localhost:8081";
-
 export async function GET(
   request: NextRequest,
   { params }: { params: { jobId: string } }
@@ -10,7 +8,7 @@ export async function GET(
     const jobId = params.jobId;
     console.log("Fetching status for job:", jobId);
 
-    const response = await fetch(`${RUST_SERVER_URL}/job-status/${jobId}`, {
+    const response = await fetch(`${process.env.API_URL}/job-status/${jobId}`, {
       cache: "no-store",
     });
 

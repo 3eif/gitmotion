@@ -3,8 +3,6 @@ import Redis from "ioredis";
 import redis from "@/lib/redis.ts";
 import crypto from "crypto";
 
-const RUST_SERVER_URL = "http://localhost:8081";
-
 const RATE_LIMIT = 20;
 const RATE_LIMIT_WINDOW = 60 * 60;
 
@@ -68,7 +66,7 @@ async function sendRequestToRustServer(
 
   console.log("Sending request to Rust server:", access_token);
 
-  const response = await fetch(`${RUST_SERVER_URL}/start-gource`, {
+  const response = await fetch(`${process.env.API_URL}/start-gource`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

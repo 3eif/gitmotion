@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const RUST_SERVER_URL = "http://localhost:8081";
-
 export async function GET(
   request: NextRequest,
   { params }: { params: { jobId: string } }
 ) {
   try {
     const jobId = params.jobId;
-    const response = await fetch(`${RUST_SERVER_URL}/video/${jobId}`, {
+    const response = await fetch(`${process.env.API_URL}/video/${jobId}`, {
       cache: "no-store",
     });
 
