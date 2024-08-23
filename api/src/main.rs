@@ -370,13 +370,27 @@ fn count_days_and_commits(repo_path: &Path) -> Result<(i32, i32), GourceError> {
 }
 
 fn calculate_seconds_per_day(days_with_commits: i32) -> f64 {
-    const TARGET_DURATION: f64 = 60.0;
-    let seconds_per_day = TARGET_DURATION / days_with_commits as f64;
-    let clamped_seconds = seconds_per_day.clamp(0.00001, 2.0) / 3.25;
+    const MIN_DURATION: f64 = 60.0;
+    const MAX_DURATION: f64 = 120.0;
+    const THRESHOLD: i32 = 1000;
+
+    let target_duration = if days_with_commits <= THRESHOLD {
+        // For repos with fewer commits, scale linearly from MIN_DURATION to MAX_DURATION
+        MIN_DURATION + (MAX_DURATION - MIN_DURATION) * (days_with_commits as f64 / THRESHOLD as f64)
+    } else {
+        // For repos with many commits, use MAX_DURATION
+        MAX_DURATION
+    };
+
+    let seconds_per_day = target_duration / days_with_commits as f64;
+
+    let clamped_seconds = seconds_per_day.clamp(0.00001, 2.0);
+
     info!(
-        "Calculated seconds per day: {} for {} days with commits.",
-        clamped_seconds, days_with_commits,
+        "Calculated seconds per day: {} for {} days with commits. Target duration: {}",
+        clamped_seconds, days_with_commits, target_duration
     );
+
     clamped_seconds
 }
 
