@@ -121,7 +121,7 @@ export default function Page() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [hasScrolled]);
 
-  async function onSubmit(githubUrl: string) {
+  async function onSubmit(githubUrl: string, accessToken?: string) {
     setIsLoading(true);
     setIsArrowVisible(true); // Reset arrow visibility on new submission
     try {
@@ -131,7 +131,10 @@ export default function Page() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ repo_url: githubUrl }),
+        body: JSON.stringify({
+          repo_url: githubUrl,
+          access_token: accessToken,
+        }),
       });
       if (!response.ok) {
         throw new Error("Failed to start Gource generation");

@@ -12,6 +12,7 @@ services:
     environment:
       - REDIS_URL=redis://redis:${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SECRET_KEY=${SECRET_KEY}
 
   redis:
     image: "redis:alpine"

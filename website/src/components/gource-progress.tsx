@@ -53,15 +53,15 @@ export default function GourceProgress({ currentStep }: GourceProgressProps) {
             <div
               className={`group flex flex-col border-l-4 py-2 pl-4 md:border-l-0 md:border-t-4 md:pb-0 md:pl-0 md:pt-4 ${
                 step.step <= currentStep
-                  ? "border-indigo-800"
+                  ? "border-[#3C4CC7]"
                   : "border-gray-200"
               }`}
               style={{
                 borderImageSource: `linear-gradient(to right, ${
                   step.step < currentStep
-                    ? "rgb(55, 48, 163) 100%"
+                    ? "#3C4CC7 100%"
                     : step.step === currentStep
-                    ? `rgb(55, 48, 163) ${progress}%, rgb(229, 231, 235) ${progress}%`
+                    ? `#3C4CC7 ${progress}%, rgb(229, 231, 235) ${progress}%`
                     : "rgb(229, 231, 235) 100%"
                 })`,
                 borderImageSlice: 1,
@@ -69,12 +69,14 @@ export default function GourceProgress({ currentStep }: GourceProgressProps) {
             >
               <span
                 className={`text-sm font-medium ${
-                  step.step <= currentStep ? "text-indigo-600" : "text-gray-500"
+                  step.step <= currentStep ? "text-[#3C4CC7]" : "text-gray-500"
                 }`}
               >
                 {step.id}
               </span>
-              <span className="text-sm font-medium">{step.name}</span>
+              <span className="text-sm text-neutral-300 font-medium">
+                {step.name}
+              </span>
             </div>
           </li>
         ))}

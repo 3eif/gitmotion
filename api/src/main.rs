@@ -3,23 +3,30 @@ use actix_files::NamedFile;
 use actix_web::Result;
 use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use chrono::NaiveDate;
+use crypto::buffer::{BufferResult, ReadBuffer, WriteBuffer};
+use crypto::digest::Digest;
+use crypto::sha2::Sha256;
+use crypto::symmetriccipher::Decryptor;
+use crypto::{aes, blockmodes, buffer, symmetriccipher};
+use hex;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use thiserror::Error;
 use tokio::sync::Mutex;
-use tokio::time::interval;
 use url::Url;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
 struct GourceRequest {
     repo_url: String,
+    access_token: Option<String>,
 }
 
 #[derive(Serialize, Clone)]
@@ -55,16 +62,51 @@ enum GourceError {
     CommitCountFailed,
     #[error("Failed to generate Gource visualization")]
     GourceGenerationFailed,
+    #[error("Failed to decrypt access token")]
+    DecryptionFailed,
 }
 
 type JobStore = Arc<Mutex<HashMap<String, JobStatus>>>;
 
+fn derive_key(secret_key: &str) -> Vec<u8> {
+    let mut hasher = Sha256::new();
+    hasher.input_str(secret_key);
+    let mut hashed_key = vec![0; 32];
+    hasher.result(&mut hashed_key);
+    hashed_key
+}
+
+fn decrypt_token(encrypted_token: &str, secret_key: &str) -> Result<String, GourceError> {
+    let parts: Vec<&str> = encrypted_token.split(':').collect();
+    if parts.len() != 2 {
+        return Err(GourceError::DecryptionFailed);
+    }
+
+    let iv = hex::decode(parts[0]).map_err(|_| GourceError::DecryptionFailed)?;
+    let ciphertext = hex::decode(parts[1]).map_err(|_| GourceError::DecryptionFailed)?;
+
+    // Derive the key using the full SECRET_KEY
+    let key = derive_key(secret_key);
+
+    let mut decryptor = aes::ctr(aes::KeySize::KeySize256, &key, &iv);
+    let mut buffer = vec![0; ciphertext.len()];
+    let mut read_buffer = buffer::RefReadBuffer::new(&ciphertext);
+    let mut write_buffer = buffer::RefWriteBuffer::new(&mut buffer);
+
+    decryptor
+        .decrypt(&mut read_buffer, &mut write_buffer, true)
+        .map_err(|_| GourceError::DecryptionFailed)?;
+
+    String::from_utf8(buffer).map_err(|_| GourceError::DecryptionFailed)
+}
+
 async fn start_gource(
-    repo_url: web::Json<GourceRequest>,
+    repo_request: web::Json<GourceRequest>,
     job_store: web::Data<JobStore>,
 ) -> impl Responder {
     let job_id = Uuid::new_v4().to_string();
-    let repo_url = repo_url.into_inner().repo_url;
+    let repo_url = repo_request.repo_url.clone();
+    let access_token = repo_request.access_token.clone();
 
     {
         let mut store = job_store.lock().await;
@@ -82,8 +124,13 @@ async fn start_gource(
     let job_id_clone = job_id.clone();
 
     tokio::spawn(async move {
-        if let Err(e) =
-            process_gource(repo_url, job_id_clone.clone(), job_store_clone.clone()).await
+        if let Err(e) = process_gource(
+            repo_url,
+            access_token,
+            job_id_clone.clone(),
+            job_store_clone.clone(),
+        )
+        .await
         {
             let mut store = job_store_clone.lock().await;
             if let Some(status) = store.get_mut(&job_id_clone) {
@@ -96,45 +143,50 @@ async fn start_gource(
     HttpResponse::Ok().json(GourceResponse { job_id })
 }
 
-async fn get_job_status(
-    job_id: web::Path<String>,
-    job_store: web::Data<JobStore>,
-) -> impl Responder {
-    let store = job_store.lock().await;
-    match store.get(job_id.as_str()) {
-        Some(status) => {
-            info!(
-                "Returning job status for {}: step={:?}, video_url={:?}",
-                job_id, status.step, status.video_url
-            );
-            HttpResponse::Ok().json(status.clone())
-        }
-        None => {
-            info!("Job not found: {}", job_id);
-            HttpResponse::NotFound().json(serde_json::json!({
-                "error": "Job not found"
-            }))
-        }
-    }
-}
-
 async fn process_gource(
     repo_url: String,
+    access_token: Option<String>,
     job_id: String,
     job_store: web::Data<JobStore>,
 ) -> Result<(), GourceError> {
+    info!("Starting process_gource for job {}", job_id);
     let start_time = Instant::now();
 
     update_job_status(&job_store, &job_id, ProgressStep::InitializingProject).await;
+    info!("Updated job status to InitializingProject");
+
     let url = Url::parse(&repo_url).map_err(|_| GourceError::InvalidUrl)?;
     if url.host_str() != Some("github.com") {
         return Err(GourceError::UnsupportedRepository);
     }
+    info!("Validated repository URL");
 
     let temp_dir = tempfile::TempDir::new().map_err(|_| GourceError::TempDirCreationFailed)?;
+    info!("Created temporary directory");
 
     let clone_start = Instant::now();
-    clone_repository(&repo_url, temp_dir.path())?;
+    info!("Attempting to decrypt token");
+    let decrypted_token = if let Some(encrypted_token) = access_token {
+        info!("Access token provided, attempting decryption");
+        let secret_key = std::env::var("SECRET_KEY").expect("SECRET_KEY must be set");
+        info!("SECRET_KEY found, length: {}", secret_key.len());
+        match decrypt_token(&encrypted_token, &secret_key) {
+            Ok(token) => {
+                info!("Token decrypted successfully");
+                Some(token)
+            }
+            Err(e) => {
+                error!("Failed to decrypt token: {:?}", e);
+                return Err(e);
+            }
+        }
+    } else {
+        info!("No access token provided");
+        None
+    };
+
+    info!("Attempting to clone repository");
+    clone_repository(&repo_url, temp_dir.path(), decrypted_token.as_deref())?;
     let clone_duration = clone_start.elapsed();
     info!("Repository cloning took {:?}", clone_duration);
 
@@ -191,6 +243,28 @@ async fn process_gource(
     Ok(())
 }
 
+async fn get_job_status(
+    job_id: web::Path<String>,
+    job_store: web::Data<JobStore>,
+) -> impl Responder {
+    let store = job_store.lock().await;
+    match store.get(job_id.as_str()) {
+        Some(status) => {
+            info!(
+                "Returning job status for {}: step={:?}, video_url={:?}",
+                job_id, status.step, status.video_url
+            );
+            HttpResponse::Ok().json(status.clone())
+        }
+        None => {
+            info!("Job not found: {}", job_id);
+            HttpResponse::NotFound().json(serde_json::json!({
+                "error": "Job not found"
+            }))
+        }
+    }
+}
+
 async fn update_job_status(job_store: &JobStore, job_id: &str, step: ProgressStep) {
     let mut store = job_store.lock().await;
     if let Some(job_status) = store.get_mut(job_id) {
@@ -205,24 +279,43 @@ async fn set_video_url(job_store: &JobStore, job_id: &str, video_url: &str) {
     }
 }
 
-fn clone_repository(repo_url: &str, temp_dir: &Path) -> Result<(), GourceError> {
+fn clone_repository(
+    repo_url: &str,
+    temp_dir: &Path,
+    github_token: Option<&str>,
+) -> Result<(), GourceError> {
     info!("Cloning repository: {}", repo_url);
-    let output = Command::new("git")
+
+    let mut url = Url::parse(repo_url).map_err(|_| GourceError::InvalidUrl)?;
+
+    // If a token is provided, include it in the URL
+    if let Some(token) = github_token {
+        url.set_username("oauth2")
+            .map_err(|_| GourceError::InvalidUrl)?;
+        url.set_password(Some(token))
+            .map_err(|_| GourceError::InvalidUrl)?;
+    }
+
+    let mut child = Command::new("git")
         .arg("clone")
-        .arg(repo_url)
+        .arg(url.as_str())
         .arg(temp_dir)
-        .output()
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|_| GourceError::CloneFailed)?;
+
+    let output = child
+        .wait_with_output()
         .map_err(|_| GourceError::CloneFailed)?;
 
     if !output.status.success() {
-        error!(
-            "Git clone failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
+        let error_message = String::from_utf8_lossy(&output.stderr);
+        error!("Git clone failed: {}", error_message);
         return Err(GourceError::CloneFailed);
     }
 
-    info!("Successfully cloned repository: {}", repo_url);
+    info!("Successfully cloned repository");
     Ok(())
 }
 
