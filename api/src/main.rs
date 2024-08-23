@@ -372,7 +372,7 @@ fn count_days_and_commits(repo_path: &Path) -> Result<(i32, i32), GourceError> {
 fn calculate_seconds_per_day(days_with_commits: i32) -> f64 {
     const TARGET_DURATION: f64 = 60.0;
     let seconds_per_day = TARGET_DURATION / days_with_commits as f64;
-    let clamped_seconds = seconds_per_day.clamp(0.00001, 2.0) / 2.75;
+    let clamped_seconds = seconds_per_day.clamp(0.00001, 2.0) / 3.25;
     info!(
         "Calculated seconds per day: {} for {} days with commits.",
         clamped_seconds, days_with_commits,

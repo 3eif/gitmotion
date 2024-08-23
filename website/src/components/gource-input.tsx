@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
@@ -19,10 +19,15 @@ export default function Component({
   const [isPrivate, setIsPrivate] = useState(false);
   const [accessKey, setAccessKey] = useState("");
 
+  useEffect(() => {
+    if (!isPrivate) {
+      setAccessKey("");
+    }
+  }, [isPrivate]);
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    console.log("isPrivate", isPrivate);
-    console.log("accessKey", accessKey);
+
     await onSubmit(githubUrl, isPrivate ? accessKey : undefined);
   }
 

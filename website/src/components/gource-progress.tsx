@@ -1,6 +1,6 @@
-"use client";
+'use client'
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react"
 
 export enum ProgressStep {
   InitializingProject = 1,
@@ -24,57 +24,71 @@ const steps = [
     name: "Generating Visualization",
     step: ProgressStep.GeneratingVisualization,
   },
-];
+]
 
 interface GourceProgressProps {
-  currentStep: ProgressStep;
+  currentStep: ProgressStep
 }
 
 export default function GourceProgress({ currentStep }: GourceProgressProps) {
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState(0)
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setProgress((oldProgress) => (oldProgress + 5) % 101);
-    }, 50);
+      setProgress((oldProgress) => (oldProgress + 2) % 101)
+    }, 30)
 
     return () => {
-      clearInterval(timer);
-    };
-  }, []);
+      clearInterval(timer)
+    }
+  }, [])
 
-  console.log("Current step:", currentStep);
+  const getGradient = useCallback((step: ProgressStep) => {
+    if (step < currentStep) {
+      return "linear-gradient(to right, #2B20A5, #171D4C)"
+    } else if (step === currentStep) {
+      return `linear-gradient(to right, #4338ca, #171D4C ${progress}%, #e5e7eb ${progress}%)`
+    } else {
+      return "linear-gradient(to right, #e5e7eb, #e5e7eb)"
+    }
+  }, [currentStep, progress])
 
   return (
     <nav aria-label="Progress" className="w-full mx-auto pt-10">
-      <ol role="list" className="space-y-4 md:flex md:space-x-8 md:space-y-0">
-        {steps.map((step) => (
-          <li key={step.name} className="md:flex-1">
-            <div
-              className={`group flex flex-col border-l-4 py-2 pl-4 md:border-l-0 md:border-t-4 md:pb-0 md:pl-0 md:pt-4 ${
-                step.step <= currentStep
-                  ? "border-[#3C4CC7]"
-                  : "border-gray-200"
-              }`}
-              style={{
-                borderImageSource: `linear-gradient(to right, ${
-                  step.step < currentStep
-                    ? "#3C4CC7 100%"
-                    : step.step === currentStep
-                    ? `#3C4CC7 ${progress}%, rgb(229, 231, 235) ${progress}%`
-                    : "rgb(229, 231, 235) 100%"
-                })`,
-                borderImageSlice: 1,
-              }}
-            >
+      <ol role="list" className="flex space-x-8">
+        {steps.map((step, index) => (
+          <li key={step.name} className="flex-1">
+            <div className="group flex flex-col">
+              <div className="flex items-center">
+                <div className="relative flex-1">
+                  {index !== 0 && (
+                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                      <div className="h-0.5 w-full bg-gray-200"></div>
+                    </div>
+                  )}
+                  <div
+                    className="relative w-full h-2 bg-gray-200 rounded-full overflow-hidden"
+                  >
+                    <div
+                      className="absolute top-0 left-0 right-0 bottom-0 transition-all duration-300 ease-in-out rounded-full"
+                      style={{
+                        width: step.step <= currentStep ? "101%" : // Slightly over 100% to cover edges
+                               step.step === currentStep ? `${progress}%` : "0%",
+                        backgroundImage: getGradient(step.step),
+                        transform: 'translateX(-0.5%)', // Shift slightly to cover both edges
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
               <span
-                className={`text-sm font-medium ${
-                  step.step <= currentStep ? "text-[#3C4CC7]" : "text-gray-500"
+                className={`text-sm font-medium mt-2 ${
+                  step.step <= currentStep ? "text-indigo-600" : "text-gray-500"
                 }`}
               >
                 {step.id}
               </span>
-              <span className="text-sm text-neutral-300 font-medium">
+              <span className="text-sm font-medium text-gray-500">
                 {step.name}
               </span>
             </div>
@@ -82,9 +96,8 @@ export default function GourceProgress({ currentStep }: GourceProgressProps) {
         ))}
       </ol>
       <p className="text-sm text-gray-500 mb-4 text-center pt-8">
-        This process might take a few minutes, especially for larger
-        repositories.
+        This process might take a few minutes, especially for larger repositories.
       </p>
     </nav>
-  );
+  )
 }
