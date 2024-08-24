@@ -8,17 +8,20 @@ interface GourceInputProps {
   onSubmit: (url: string, accessKey?: string) => Promise<void>;
   isLoading: boolean;
   isGenerating: boolean;
+  initialUrl?: string;
 }
 
 export default function Component({
   onSubmit,
   isLoading,
   isGenerating,
+  initialUrl = "",
 }: GourceInputProps) {
-  const [repoUrl, setRepoUrl] = useState("");
+  const [repoUrl, setRepoUrl] = useState(initialUrl);
   const [isPrivate, setIsPrivate] = useState(false);
   const [accessKey, setAccessKey] = useState("");
   const [isValidUrl, setIsValidUrl] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isPrivate) {
@@ -32,15 +35,37 @@ export default function Component({
     setIsValidUrl(urlRegex.test(repoUrl));
   }, [repoUrl]);
 
+  useEffect(() => {
+    if (initialUrl) {
+      setRepoUrl(initialUrl);
+    }
+  }, [initialUrl]);
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (isValidUrl) {
-      await onSubmit(repoUrl, isPrivate ? accessKey : undefined);
+    if (isValidUrl && !isSubmitting && !isLoading && !isGenerating) {
+      setIsSubmitting(true);
+      try {
+        await onSubmit(repoUrl, isPrivate ? accessKey : undefined);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   }
 
   const isDisabled =
-    !isValidUrl || (isPrivate && !accessKey) || isLoading || isGenerating;
+    !isValidUrl ||
+    (isPrivate && !accessKey) ||
+    isSubmitting ||
+    isLoading ||
+    isGenerating;
+
+  const buttonText =
+    isSubmitting || isLoading
+      ? "In Progress..."
+      : isGenerating
+      ? "Generating..."
+      : "Generate";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -53,7 +78,7 @@ export default function Component({
           className={`w-full appearance-none rounded-lg border-[1.5px] ${
             repoUrl && !isValidUrl ? "border-red-500" : "border-white/10"
           } bg-transparent py-2 pl-3 pr-20 text-white placeholder-white/20 outline-none transition-all hover:border-white/20 focus:border-white/30`}
-          disabled={isGenerating}
+          disabled={isSubmitting || isGenerating}
         />
         <div className="absolute inset-y-0 right-0 flex items-center pr-4">
           <button
@@ -63,11 +88,7 @@ export default function Component({
               isDisabled ? "opacity-50 cursor-not-allowed" : ""
             }`}
           >
-            {isLoading
-              ? "In Progress..."
-              : isGenerating
-              ? "Generating..."
-              : "Generate"}
+            {buttonText}
           </button>
         </div>
       </div>
@@ -83,7 +104,7 @@ export default function Component({
               className={`w-full appearance-none rounded-lg border-[1.5px] border-white/10 bg-transparent py-2 px-3 text-white placeholder-white/20 outline-none transition-all hover:border-white/20 focus:border-white/30 ${
                 !isPrivate ? "opacity-50" : ""
               }`}
-              disabled={!isPrivate || isGenerating}
+              disabled={!isPrivate || isSubmitting || isGenerating}
             />
           </div>
           <div className="flex items-center space-x-3 pt-2">
@@ -91,7 +112,7 @@ export default function Component({
               id="private-mode"
               checked={isPrivate}
               onCheckedChange={setIsPrivate}
-              disabled={isGenerating}
+              disabled={isSubmitting || isGenerating}
               className="bg-white/20 data-[state=checked]:bg-blurple data-[state=unchecked]:bg-gray-800"
             />
             <Label

@@ -1,11 +1,38 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import ExampleGenerations from "@/components/example-generations";
 import Footer from "@/components/footer";
 import GourceInput from "@/components/gource-input";
+import { ProgressStep } from "@/components/gource-progress";
+import GourceVideo from "@/components/gource-video";
 import { ChevronDownIcon } from "@heroicons/react/16/solid";
 import { useState, useRef, useEffect } from "react";
+import useSWR from "swr";
+
+interface JobStatus {
+  step: ProgressStep;
+  video_url: string | null;
+  repo_url: string;
+  error: string | null;
+}
+
+const fetcher = async (url: string) => {
+  const res = await fetch(url, {
+    headers: {
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+  });
+  if (!res.ok) {
+    throw new Error("An error occurred while fetching the data.");
+  }
+  const data = await res.json();
+  if (typeof data.step === "string") {
+    data.step = ProgressStep[data.step as keyof typeof ProgressStep];
+  }
+  return data;
+};
 
 const ArrowButton = ({
   onClick,
@@ -31,12 +58,59 @@ const ArrowButton = ({
 );
 
 export default function Page() {
-  const router = useRouter();
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const jobId = params.id as string;
+
+  const [repoUrl, setRepoUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isArrowVisible, setIsArrowVisible] = useState(true);
   const [hasScrolled, setHasScrolled] = useState(false);
+  const [lastValidJobStatus, setLastValidJobStatus] =
+    useState<JobStatus | null>(null);
+  const [isJobCompleted, setIsJobCompleted] = useState(false);
 
+  const videoRef = useRef<HTMLDivElement>(null);
   const exampleGenerationsRef = useRef<HTMLDivElement>(null);
+
+  const {
+    data: jobStatus,
+    error,
+    mutate,
+  } = useSWR<JobStatus>(`/api/gource/status/${jobId}`, fetcher, {
+    refreshInterval: (data) => {
+      if (data?.video_url || data?.error) {
+        return 0;
+      }
+      return 5000;
+    },
+    revalidateOnFocus: false,
+    dedupingInterval: 1000,
+    onSuccess: (data) => {
+      if (data) {
+        console.log("Raw job status data:", data);
+        console.log("Parsed step:", data.step);
+        console.log("Parsed step type:", typeof data.step);
+        setLastValidJobStatus(data);
+        setRepoUrl(data.repo_url);
+        if (data.video_url || data.error) {
+          setIsJobCompleted(true);
+        }
+      }
+    },
+    onError: (err) => console.error("SWR Error:", err),
+  });
+
+  useEffect(() => {
+    if (jobStatus) {
+      console.log("Job Status:", jobStatus);
+      if (jobStatus.video_url && videoRef.current) {
+        smoothScrollTo(videoRef.current, 850);
+        setIsJobCompleted(true);
+        setIsArrowVisible(false);
+      }
+    }
+  }, [jobStatus]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -56,6 +130,7 @@ export default function Page() {
 
   async function onSubmit(githubUrl: string, accessToken?: string) {
     setIsLoading(true);
+    setIsArrowVisible(true);
     try {
       console.log("Submitting repo URL:", githubUrl);
       const response = await fetch("/api/gource/start", {
@@ -73,7 +148,8 @@ export default function Page() {
       }
       const data = await response.json();
       console.log("Received job ID:", data.job_id);
-      router.push(`/${data.job_id}`);
+      setRepoUrl(githubUrl);
+      mutate();
     } catch (error) {
       console.error("Failed to start Gource generation:", error);
     } finally {
@@ -114,6 +190,13 @@ export default function Page() {
     }
   };
 
+  const isGenerating =
+    lastValidJobStatus &&
+    !lastValidJobStatus.video_url &&
+    !lastValidJobStatus.error;
+
+  const shouldShowArrow = isArrowVisible && !lastValidJobStatus?.video_url;
+
   return (
     <>
       <div className="flex min-h-screen flex-col items-center justify-center gap-7 pt-6 pb-20">
@@ -133,15 +216,22 @@ export default function Page() {
               <GourceInput
                 onSubmit={onSubmit}
                 isLoading={isLoading}
-                isGenerating={false}
+                isGenerating={isGenerating || false}
+                initialUrl={repoUrl}
               />
             </div>
           </div>
         </div>
+        <GourceVideo
+          jobStatus={lastValidJobStatus}
+          jobId={jobId}
+          error={error}
+          videoRef={videoRef}
+        />
       </div>
       <ArrowButton
         onClick={scrollToExampleGenerations}
-        isVisible={isArrowVisible}
+        isVisible={shouldShowArrow}
       />
       <div ref={exampleGenerationsRef} className="px-8 max-w-7xl mx-auto">
         <ExampleGenerations />

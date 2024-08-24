@@ -45,6 +45,7 @@ enum ProgressStep {
 struct JobStatus {
     step: ProgressStep,
     video_url: Option<String>,
+    repo_url: String,
     error: Option<String>,
 }
 
@@ -115,6 +116,7 @@ async fn start_gource(
             JobStatus {
                 step: ProgressStep::InitializingProject,
                 video_url: None,
+                repo_url: repo_url.clone(),
                 error: None,
             },
         );
