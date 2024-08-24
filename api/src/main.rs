@@ -370,8 +370,8 @@ fn count_days_and_commits(repo_path: &Path) -> Result<(i32, i32), GourceError> {
 }
 
 fn calculate_seconds_per_day(days_with_commits: i32) -> f64 {
-    const MIN_DURATION: f64 = 60.0;
-    const MAX_DURATION: f64 = 100.0;
+    const MIN_DURATION: f64 = 50.0;
+    const MAX_DURATION: f64 = 90.0;
     const THRESHOLD: i32 = 1000;
 
     let target_duration = if days_with_commits <= THRESHOLD {

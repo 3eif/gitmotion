@@ -31,13 +31,15 @@ export default function GourceVideo({
     <div className="w-full">
       {jobStatus && (
         <div>
-          {jobStatus.video_url === null && (
+          {jobStatus.video_url === null && !jobStatus.error && (
             <div className="w-full max-w-xl mx-auto">
               <GourceProgress currentStep={jobStatus.step} />
             </div>
           )}
-          {jobStatus.error && (
-            <p className="text-red-500 mt-2">{jobStatus.error}</p>
+          {jobStatus && jobStatus.error && (
+            <div className="flex justify-center mt-2">
+              <p className="text-red-500 text-center">{jobStatus.error}</p>
+            </div>
           )}
           {jobStatus.step === ProgressStep.GeneratingVisualization &&
             jobStatus.video_url && (
@@ -71,9 +73,11 @@ export default function GourceVideo({
       )}
 
       {error && (
-        <p className="text-red-500 mt-2">
-          Error fetching job status: {error.message}
-        </p>
+        <div className="flex justify-center mt-2">
+          <p className="text-red-500 text-center">
+            Error fetching job status: {error.message}
+          </p>
+        </div>
       )}
     </div>
   );
