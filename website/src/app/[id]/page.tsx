@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import ExampleGenerations from "@/components/example-generations";
 import Footer from "@/components/footer";
 import GourceInput from "@/components/gource-input";
@@ -60,6 +60,7 @@ const ArrowButton = ({
 export default function Page() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const jobId = params.id as string;
 
   const [repoUrl, setRepoUrl] = useState("");
@@ -69,6 +70,7 @@ export default function Page() {
   const [lastValidJobStatus, setLastValidJobStatus] =
     useState<JobStatus | null>(null);
   const [isJobCompleted, setIsJobCompleted] = useState(false);
+  const [shouldPoll, setShouldPoll] = useState(true);
 
   const videoRef = useRef<HTMLDivElement>(null);
   const exampleGenerationsRef = useRef<HTMLDivElement>(null);
@@ -77,29 +79,59 @@ export default function Page() {
     data: jobStatus,
     error,
     mutate,
-  } = useSWR<JobStatus>(`/api/gource/status/${jobId}`, fetcher, {
-    refreshInterval: (data) => {
-      if (data?.video_url || data?.error) {
-        return 0;
-      }
-      return 5000;
-    },
-    revalidateOnFocus: false,
-    dedupingInterval: 1000,
-    onSuccess: (data) => {
-      if (data) {
-        console.log("Raw job status data:", data);
-        console.log("Parsed step:", data.step);
-        console.log("Parsed step type:", typeof data.step);
-        setLastValidJobStatus(data);
-        setRepoUrl(data.repo_url);
-        if (data.video_url || data.error) {
-          setIsJobCompleted(true);
+  } = useSWR<JobStatus>(
+    shouldPoll ? `/api/gource/status/${jobId}` : null,
+    fetcher,
+    {
+      refreshInterval: 5000,
+      revalidateOnFocus: false,
+      dedupingInterval: 1000,
+      onSuccess: (data) => {
+        if (data) {
+          console.log("Raw job status data:", data);
+          console.log("Parsed step:", data.step);
+          console.log("Parsed step type:", typeof data.step);
+          setLastValidJobStatus(data);
+          setRepoUrl(data.repo_url);
+          if (data.video_url || data.error) {
+            setIsJobCompleted(true);
+            setShouldPoll(false);
+          }
         }
+      },
+      onError: (err) => console.error("SWR Error:", err),
+    }
+  );
+
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    if (shouldPoll) {
+      intervalId = setInterval(() => {
+        mutate();
+      }, 5000);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
       }
-    },
-    onError: (err) => console.error("SWR Error:", err),
-  });
+    };
+  }, [shouldPoll, mutate]);
+
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        setShouldPoll(true);
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (jobStatus) {
@@ -148,7 +180,17 @@ export default function Page() {
       }
       const data = await response.json();
       console.log("Received job ID:", data.job_id);
+
+      // Update the URL with the new job ID
+      router.push(`/${data.job_id}`);
+
+      // Reset states for the new job
       setRepoUrl(githubUrl);
+      setLastValidJobStatus(null);
+      setIsJobCompleted(false);
+      setShouldPoll(true);
+
+      // Trigger a new data fetch for the new job ID
       mutate();
     } catch (error) {
       console.error("Failed to start Gource generation:", error);
@@ -156,7 +198,6 @@ export default function Page() {
       setIsLoading(false);
     }
   }
-
   const smoothScrollTo = (element: HTMLElement, duration: number) => {
     const targetPosition =
       element.getBoundingClientRect().top + window.pageYOffset;
