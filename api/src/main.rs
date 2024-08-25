@@ -413,33 +413,12 @@ fn generate_gource_visualization(
     output_file: &Path,
     settings: &Option<GourceSettings>,
 ) -> Result<(), GourceError> {
-    let mut hide_options = vec!["progress"];
-    if hide_filenames == "--hide filenames" {
-        hide_options.push("filenames");
-    }
-
-    let mut key_option = "";
-
-    if let Some(settings) = settings {
-        if !settings.show_usernames {
-            hide_options.push("usernames");
-        }
-        if !settings.show_dirnames {
-            hide_options.push("dirnames");
-        }
-        if settings.show_file_extension_key {
-            key_option = "--key";
-        }
-    }
-
-    let hide_string = format!("--hide {}", hide_options.join(","));
-
-    let gource_command = format!(
-        "xvfb-run -a gource {} -1920x1080 \
+    let mut gource_command = format!(
+        "xvfb-run -a gource {} -1920x1200 \
         --seconds-per-day {} \
         --auto-skip-seconds 0.01 \
         {} \
-        {} \
+        --hide progress \
         --max-user-speed 500 \
         --output-framerate 30 \
         --multi-sampling \
@@ -448,18 +427,35 @@ fn generate_gource_visualization(
         --elasticity 0.01 \
         --background-colour 000000 \
         --dir-font-size 12 \
-        --stop-at-end \
-        -o - | \
-        ffmpeg -y -r 30 -f image2pipe -vcodec ppm -i - \
-        -vcodec libx264 -crf 19 -threads 0 -bf 0 {}",
+        --stop-at-end",
         temp_dir.to_str().unwrap(),
         seconds_per_day,
-        hide_string,
-        key_option,
-        output_file.to_str().unwrap()
+        hide_filenames
     );
 
-    info!("Executing Gource command: {}", gource_command);
+    if let Some(settings) = settings {
+        if settings.show_file_extension_key {
+            gource_command.push_str(" --key");
+        }
+        if !settings.show_usernames {
+            gource_command.push_str(" --hide usernames");
+        }
+        if !settings.show_dirnames {
+            gource_command.push_str(" --hide dirnames");
+        }
+    }
+
+    gource_command.push_str(&format!(
+        " -o - | \
+        ffmpeg -y -r 30 -f image2pipe -vcodec ppm -i - \
+        -vcodec libx264 -preset fast -crf 23 -movflags +faststart \
+        -pix_fmt yuv420p -vf \"pad=ceil(iw/2)*2:ceil(ih/2)*2\" \
+        -acodec aac -b:a 128k \
+        {}",
+        output_file.to_str().unwrap()
+    ));
+
+    info!("Running gource command: {}", gource_command);
 
     let output = Command::new("sh")
         .arg("-c")
