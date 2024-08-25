@@ -15,12 +15,12 @@ export const fontSans = FontSans({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.URL ?? "http://localhost:3000/"),
-  title: "Gitsight",
+  title: "Gitmotion",
   description:
     "Generate beautiful visualizations of your Git history right in your browser.",
-  applicationName: "Gitsight",
+  applicationName: "Gitmotion",
   openGraph: {
-    title: "Gitsight",
+    title: "Gitmotion",
     description:
       "Generate beautiful visualizations of your Git history right in your browser.",
     url: "https://gitmotion.app",
@@ -28,19 +28,19 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/og.png",
-        alt: "Gitsight",
+        alt: "Gitmotion",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Gitsight",
+    title: "Gitmotion",
     description:
       "Generate beautiful visualizations of your Git history right in your browser.",
     images: [
       {
         url: "/og.png",
-        alt: "Gitsight",
+        alt: "Gitmotion",
       },
     ],
     creator: "@sabziz",

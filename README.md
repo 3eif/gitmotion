@@ -1,4 +1,4 @@
-# GitSight
+# Gitmotion
 
 ## Prerequisites
 
@@ -10,14 +10,14 @@
 1. Clone the repository:
 
 ```
-git clone https://github.com/3eif/gitsight.git
-cd gitsight
+git clone https://github.com/3eif/gitmotion.git
+cd gitmotion
 ```
 
 2. Build the Docker image:
 
 ```
-docker build -t gitsight . --no-cache
+docker build -t gitmotion . --no-cache
 ```
 
 ## Usage
@@ -25,7 +25,7 @@ docker build -t gitsight . --no-cache
 1. Run the Docker container:
 
 ```
-docker run -it -p 8081:8081 -v "$(pwd)/gource_videos:/gource_videos" gitsight
+docker run -it -p 8081:8081 -v "$(pwd)/gource_videos:/gource_videos" gitmotion
 ```
 
 2. The server will start and listen on `http://0.0.0.0:8081`

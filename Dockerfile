@@ -1,13 +1,13 @@
 # Use the official Rust image as a parent image
 FROM rust:latest AS builder
 # Set the working directory in the container
-WORKDIR /usr/src/gitsight
+WORKDIR /usr/src/gitmotion
 # Copy the Cargo.toml and Cargo.lock files
 COPY api/Cargo.toml api/Cargo.lock ./api/
 # Copy the source code
 COPY api/src ./api/src
 # Build the application
-WORKDIR /usr/src/gitsight/api
+WORKDIR /usr/src/gitmotion/api
 RUN cargo build --release
 
 # Use a smaller base image for the final stage
@@ -25,7 +25,7 @@ RUN apt-get update && \
   rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Copy the built executable from the builder stage
-COPY --from=builder /usr/src/gitsight/api/target/release/gitsight-api /usr/local/bin/gitsight-api
+COPY --from=builder /usr/src/gitmotion/api/target/release/gitmotion-api /usr/local/bin/gitmotion-api
 
 # Create a directory for Gource videos
 RUN mkdir -p /gource_videos && chmod 777 /gource_videos
@@ -37,4 +37,4 @@ WORKDIR /usr/local/bin
 ENV RUST_LOG=info
 
 # Run the binary
-CMD ["gitsight-api"]
+CMD ["gitmotion-api"]

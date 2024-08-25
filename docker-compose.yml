@@ -1,5 +1,5 @@
 services:
-  gitsight-api:
+  gitmotion-api:
     build:
       context: .
       dockerfile: Dockerfile

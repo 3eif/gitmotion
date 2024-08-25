@@ -54,7 +54,7 @@ export default function Footer() {
                 </svg>
               </a>
               <a
-                href="https://github.com/3eif/gitsight"
+                href="https://github.com/3eif/gitmotion"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="GitHub"
