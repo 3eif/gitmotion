@@ -3,12 +3,28 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { SlidersHorizontal } from "lucide-react";
 
 interface GourceInputProps {
-  onSubmit: (url: string, accessKey?: string) => Promise<void>;
+  onSubmit: (
+    url: string,
+    accessKey?: string,
+    settings?: GourceSettings
+  ) => Promise<void>;
   isLoading: boolean;
   isGenerating: boolean;
   initialUrl?: string;
+}
+
+export interface GourceSettings {
+  showFileExtensionKey: boolean;
+  showUsernames: boolean;
+  showDirnames: boolean;
 }
 
 export default function Component({
@@ -22,6 +38,12 @@ export default function Component({
   const [accessKey, setAccessKey] = useState("");
   const [isValidUrl, setIsValidUrl] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [settings, setSettings] = useState<GourceSettings>({
+    showFileExtensionKey: true,
+    showUsernames: true,
+    showDirnames: true,
+  });
 
   useEffect(() => {
     if (!isPrivate) {
@@ -46,7 +68,7 @@ export default function Component({
     if (isValidUrl && !isSubmitting && !isLoading && !isGenerating) {
       setIsSubmitting(true);
       try {
-        await onSubmit(repoUrl, isPrivate ? accessKey : undefined);
+        await onSubmit(repoUrl, isPrivate ? accessKey : undefined, settings);
       } finally {
         setIsSubmitting(false);
       }
@@ -77,10 +99,86 @@ export default function Component({
           placeholder="https://github.com/username/repo"
           className={`w-full appearance-none rounded-lg border-[1.5px] ${
             repoUrl && !isValidUrl ? "border-red-500" : "border-white/10"
-          } bg-transparent py-2 pl-3 pr-20 text-white placeholder-white/20 outline-none transition-all hover:border-white/20 focus:border-white/30`}
+          } bg-transparent py-2 pl-3 pr-36 text-green-50 placeholder-white/20 outline-none transition-all hover:border-white/20 focus:border-white/30`}
           disabled={isSubmitting || isGenerating}
         />
         <div className="absolute inset-y-0 right-0 flex items-center pr-4">
+          <Popover open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="p-1 rounded-md hover:bg-white/10 transition-colors"
+              >
+                <SlidersHorizontal className="w-4 h-4 text-white" />
+                <span className="sr-only">Filters</span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 bg-[#080A1A]/20 backdrop-blur-md border-white/10 text-white p-4">
+              <h3 className="text-sm font-medium mb-3">
+                Visualization Filters
+              </h3>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label
+                    htmlFor="show-file-extension-key"
+                    className="text-gray-300 text-xs"
+                  >
+                    Show file extension key
+                  </Label>
+                  <Switch
+                    id="show-file-extension-key"
+                    checked={settings.showFileExtensionKey}
+                    onCheckedChange={(checked) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        showFileExtensionKey: checked,
+                      }))
+                    }
+                    className="bg-white/20 data-[state=checked]:bg-blurple data-[state=unchecked]:bg-gray-800"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label
+                    htmlFor="show-usernames"
+                    className="text-xs text-gray-300"
+                  >
+                    Show usernames
+                  </Label>
+                  <Switch
+                    id="show-usernames"
+                    checked={settings.showUsernames}
+                    onCheckedChange={(checked) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        showUsernames: checked,
+                      }))
+                    }
+                    className="bg-white/20 data-[state=checked]:bg-blurple data-[state=unchecked]:bg-gray-800"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label
+                    htmlFor="show-dirnames"
+                    className="text-xs text-gray-300"
+                  >
+                    Show dirnames
+                  </Label>
+                  <Switch
+                    id="show-dirnames"
+                    checked={settings.showDirnames}
+                    onCheckedChange={(checked) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        showDirnames: checked,
+                      }))
+                    }
+                    className="bg-white/20 data-[state=checked]:bg-blurple data-[state=unchecked]:bg-gray-800"
+                  />
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <div className="mx-2 h-4 w-px bg-white/20" aria-hidden="true" />
           <button
             type="submit"
             disabled={isDisabled}
@@ -102,7 +200,7 @@ export default function Component({
               onChange={(e) => setAccessKey(e.target.value)}
               placeholder="Private Access Key"
               className={`w-full appearance-none rounded-lg border-[1.5px] border-white/10 bg-transparent py-2 px-3 text-white placeholder-white/20 outline-none transition-all hover:border-white/20 focus:border-white/30 ${
-                !isPrivate ? "opacity-50" : ""
+                !isPrivate ? "opacity-20" : ""
               }`}
               disabled={!isPrivate || isSubmitting || isGenerating}
             />
@@ -113,12 +211,12 @@ export default function Component({
               checked={isPrivate}
               onCheckedChange={setIsPrivate}
               disabled={isSubmitting || isGenerating}
-              className="bg-white/20 data-[state=checked]:bg-blurple data-[state=unchecked]:bg-gray-800"
+              className="bg-white/10 data-[state=checked]:bg-blurple data-[state=unchecked]:bg-gray-800"
             />
             <Label
               htmlFor="private-mode"
               className={`text-xs font-medium uppercase ${
-                isPrivate ? "text-white" : "text-gray-500"
+                isPrivate ? "text-white" : "opacity-30"
               }`}
             >
               PRIVATE REPO

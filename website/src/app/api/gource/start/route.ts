@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Redis from "ioredis";
 import redis from "@/lib/redis.ts";
 import crypto from "crypto";
+import { GourceSettings } from "@/components/gource-input";
 
 const RATE_LIMIT = 20;
 const RATE_LIMIT_WINDOW = 60 * 60;
@@ -60,9 +61,14 @@ async function checkRateLimit(ip: string): Promise<{
 
 async function sendRequestToRustServer(
   repo_url: string,
-  access_token?: string
+  access_token?: string,
+  settings?: GourceSettings
 ) {
-  const body = access_token ? { repo_url, access_token } : { repo_url };
+  const body = {
+    repo_url,
+    ...(access_token && { access_token }),
+    ...(settings && { settings }),
+  };
 
   console.log("Sending request to Rust server:", access_token);
 
@@ -103,19 +109,21 @@ export async function POST(request: NextRequest) {
   //     );
   //   }
 
-  const { repo_url, access_token } = await request.json();
+  const { repo_url, access_token, settings } = await request.json();
 
   let encryptedToken;
   if (access_token) {
     encryptedToken = encryptToken(access_token);
-    console.log("Encrypted Token:", encryptedToken);
   }
 
-  console.log("Sending request to Rust server:", repo_url);
+  const count = await redis.get("generations");
+  await redis.set("generations", Number(count) + 1);
 
-  const data = await sendRequestToRustServer(repo_url, encryptedToken);
-  console.log("Received response from Rust server:", data);
-
+  const data = await sendRequestToRustServer(
+    repo_url,
+    encryptedToken,
+    settings
+  );
   return NextResponse.json(data);
   // } catch (error) {
   //   console.error("Error starting Gource job:", error);

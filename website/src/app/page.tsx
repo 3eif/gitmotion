@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import ExampleGenerations from "@/components/example-generations";
 import Footer from "@/components/footer";
-import GourceInput from "@/components/gource-input";
+import GourceInput, { GourceSettings } from "@/components/gource-input";
 import { ChevronDownIcon } from "@heroicons/react/16/solid";
 import { useState, useRef, useEffect } from "react";
 
@@ -54,7 +54,11 @@ export default function Page() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [hasScrolled]);
 
-  async function onSubmit(githubUrl: string, accessToken?: string) {
+  async function onSubmit(
+    githubUrl: string,
+    accessToken?: string,
+    settings?: GourceSettings
+  ) {
     setIsLoading(true);
     try {
       console.log("Submitting repo URL:", githubUrl);
@@ -66,6 +70,7 @@ export default function Page() {
         body: JSON.stringify({
           repo_url: githubUrl,
           access_token: accessToken,
+          settings: settings,
         }),
       });
       if (!response.ok) {
@@ -116,28 +121,12 @@ export default function Page() {
 
   return (
     <>
-      <div className="flex min-h-screen flex-col items-center justify-center gap-7 pt-6 pb-20">
-        <div className="flex flex-col items-center justify-center text-center mx-auto w-full max-w-7xl">
-          <div className="w-full space-y-5 duration-1000 ease-in-out animate-in fade-in slide-in-from-top-5">
-            <div className="font-normal text-sm text-neutral-300 px-4 py-2 rounded-full border border-blue-500/30 bg-gradient-to-b from-blue-400/10 to-blue-900/10 inline-block">
-              <strong>45</strong> visualizations generated and counting
-            </div>
-            <h1 className="text-4xl md:text-7xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-b from-neutral-50 to-neutral-500 bg-opacity-50">
-              Gitmotion
-            </h1>
-            <p className="font-normal text-lg text-neutral-300 max-w-xl text-center mx-auto px-8">
-              Generate beautiful visualizations of your Git repository history
-              right in your browser.
-            </p>
-            <div className="w-full max-w-xl mx-auto">
-              <GourceInput
-                onSubmit={onSubmit}
-                isLoading={isLoading}
-                isGenerating={false}
-              />
-            </div>
-          </div>
-        </div>
+      <div className="w-full max-w-xl mx-auto pt-2 pb-3">
+        <GourceInput
+          onSubmit={onSubmit}
+          isLoading={isLoading}
+          isGenerating={false}
+        />
       </div>
       <ArrowButton
         onClick={scrollToExampleGenerations}
@@ -146,7 +135,6 @@ export default function Page() {
       <div ref={exampleGenerationsRef} className="px-8 max-w-7xl mx-auto">
         <ExampleGenerations />
       </div>
-      <Footer />
     </>
   );
 }

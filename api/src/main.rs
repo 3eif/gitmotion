@@ -3,21 +3,19 @@ use actix_files::NamedFile;
 use actix_web::Result;
 use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use chrono::NaiveDate;
-use crypto::buffer::{BufferResult, ReadBuffer, WriteBuffer};
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use crypto::symmetriccipher::Decryptor;
-use crypto::{aes, blockmodes, buffer, symmetriccipher};
+use crypto::{aes, buffer};
 use hex;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::fs::{self, File};
-use std::io::Write;
+use std::fs::{self};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use thiserror::Error;
 use tokio::sync::Mutex;
 use url::Url;
@@ -27,6 +25,14 @@ use uuid::Uuid;
 struct GourceRequest {
     repo_url: String,
     access_token: Option<String>,
+    settings: Option<GourceSettings>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+struct GourceSettings {
+    show_file_extension_key: bool,
+    show_usernames: bool,
+    show_dirnames: bool,
 }
 
 #[derive(Serialize, Clone)]
@@ -108,6 +114,7 @@ async fn start_gource(
     let job_id = Uuid::new_v4().to_string();
     let repo_url = repo_request.repo_url.clone();
     let access_token = repo_request.access_token.clone();
+    let settings = repo_request.settings.clone();
 
     {
         let mut store = job_store.lock().await;
@@ -129,6 +136,7 @@ async fn start_gource(
         if let Err(e) = process_gource(
             repo_url,
             access_token,
+            settings,
             job_id_clone.clone(),
             job_store_clone.clone(),
         )
@@ -144,10 +152,10 @@ async fn start_gource(
 
     HttpResponse::Ok().json(GourceResponse { job_id })
 }
-
 async fn process_gource(
     repo_url: String,
     access_token: Option<String>,
+    settings: Option<GourceSettings>,
     job_id: String,
     job_store: web::Data<JobStore>,
 ) -> Result<(), GourceError> {
@@ -210,15 +218,15 @@ async fn process_gource(
     let gource_start = Instant::now();
 
     // Use tokio::task::spawn_blocking for CPU-intensive tasks
-    let gource_result = tokio::task::spawn_blocking(move || {
+    let _gource_result = tokio::task::spawn_blocking(move || {
         let result = generate_gource_visualization(
             temp_dir.path(),
             seconds_per_day,
             hide_filenames,
             &output_file,
+            &settings,
         );
 
-        // Clean up the temporary directory
         if let Err(e) = temp_dir.close() {
             error!("Failed to remove temporary directory: {:?}", e);
         }
@@ -298,7 +306,7 @@ fn clone_repository(
             .map_err(|_| GourceError::InvalidUrl)?;
     }
 
-    let mut child = Command::new("git")
+    let child = Command::new("git")
         .arg("clone")
         .arg(url.as_str())
         .arg(temp_dir)
@@ -401,15 +409,15 @@ fn generate_gource_visualization(
     seconds_per_day: f64,
     hide_filenames: &str,
     output_file: &Path,
+    settings: &Option<GourceSettings>,
 ) -> Result<(), GourceError> {
-    let gource_command = format!(
+    let mut gource_command = format!(
         "xvfb-run -a gource {} -1920x1200 \
         --seconds-per-day {} \
         --auto-skip-seconds 0.01 \
         {} \
         --hide progress \
         --max-user-speed 500 \
-        --key \
         --output-framerate 30 \
         --multi-sampling \
         --bloom-intensity 0.2 \
@@ -417,18 +425,33 @@ fn generate_gource_visualization(
         --elasticity 0.01 \
         --background-colour 000000 \
         --dir-font-size 12 \
-        --stop-at-end \
-        -o - | \
+        --stop-at-end",
+        temp_dir.to_str().unwrap(),
+        seconds_per_day,
+        hide_filenames
+    );
+
+    if let Some(settings) = settings {
+        if settings.show_file_extension_key {
+            gource_command.push_str(" --key");
+        }
+        if !settings.show_usernames {
+            gource_command.push_str(" --hide usernames");
+        }
+        if !settings.show_dirnames {
+            gource_command.push_str(" --hide dirnames");
+        }
+    }
+
+    gource_command.push_str(&format!(
+        " -o - | \
         ffmpeg -y -r 30 -f image2pipe -vcodec ppm -i - \
         -vcodec libx264 -preset fast -crf 23 -movflags +faststart \
         -pix_fmt yuv420p -vf \"pad=ceil(iw/2)*2:ceil(ih/2)*2\" \
         -acodec aac -b:a 128k \
         {}",
-        temp_dir.to_str().unwrap(),
-        seconds_per_day,
-        hide_filenames,
         output_file.to_str().unwrap()
-    );
+    ));
 
     let output = Command::new("sh")
         .arg("-c")
