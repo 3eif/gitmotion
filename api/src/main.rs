@@ -417,8 +417,6 @@ fn generate_gource_visualization(
         "xvfb-run -a gource {} -1920x1200 \
         --seconds-per-day {} \
         --auto-skip-seconds 0.01 \
-        {} \
-        --hide progress \
         --max-user-speed 500 \
         --output-framerate 30 \
         --multi-sampling \
@@ -429,20 +427,28 @@ fn generate_gource_visualization(
         --dir-font-size 12 \
         --stop-at-end",
         temp_dir.to_str().unwrap(),
-        seconds_per_day,
-        hide_filenames
+        seconds_per_day
     );
+
+    let mut hide_elements = vec!["progress"];
+    if hide_filenames.is_empty() {
+        hide_elements.push("filenames");
+    }
 
     if let Some(settings) = settings {
         if settings.show_file_extension_key {
             gource_command.push_str(" --key");
         }
         if !settings.show_usernames {
-            gource_command.push_str(" --hide usernames");
+            hide_elements.push("usernames");
         }
         if !settings.show_dirnames {
-            gource_command.push_str(" --hide dirnames");
+            hide_elements.push("dirnames");
         }
+    }
+
+    if !hide_elements.is_empty() {
+        gource_command.push_str(&format!(" --hide {}", hide_elements.join(",")));
     }
 
     gource_command.push_str(&format!(

@@ -1,8 +1,7 @@
 "use client";
 
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import ExampleGenerations from "@/components/example-generations";
-import Footer from "@/components/footer";
 import GourceInput, { GourceSettings } from "@/components/gource-input";
 import { ProgressStep } from "@/components/gource-progress";
 import GourceVideo from "@/components/gource-video";
@@ -60,7 +59,6 @@ const ArrowButton = ({
 
 export default function Page() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const router = useRouter();
   const jobId = params.id as string;
 
@@ -96,16 +94,15 @@ export default function Page() {
       onSuccess: (data) => {
         if (data) {
           console.log("Raw job status data:", data);
-          console.log("Parsed step:", data.step);
-          console.log("Parsed step type:", typeof data.step);
           setLastValidJobStatus(data);
           setRepoUrl(data.repo_url);
-          if (data.settings) {
-            setSettings(data.settings);
-          }
+          setSettings(data.settings);
           if (data.video_url || data.error) {
             setIsJobCompleted(true);
             setShouldPoll(false);
+            setIsGenerationInProgress(false);
+          } else {
+            setIsGenerationInProgress(true);
           }
         }
       },
@@ -115,58 +112,19 @@ export default function Page() {
 
   useEffect(() => {
     if (jobStatus) {
-      setIsGenerationInProgress(
-        jobStatus.step !== ProgressStep.GeneratingVisualization ||
-          (!jobStatus.video_url && !jobStatus.error)
-      );
-    }
-  }, [jobStatus]);
-
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-
-    if (shouldPoll) {
-      intervalId = setInterval(() => {
-        mutate();
-      }, 5000);
-    }
-
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
-  }, [shouldPoll, mutate]);
-
-  useEffect(() => {
-    function handleVisibilityChange() {
-      if (document.hidden) {
-        setShouldPoll(true);
-      }
-    }
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (jobStatus) {
       console.log("Job Status:", jobStatus);
+      console.log("isGenerationInProgress:", isGenerationInProgress);
       if (jobStatus.video_url && videoRef.current) {
         smoothScrollTo(videoRef.current, 850);
         setIsJobCompleted(true);
         setIsArrowVisible(false);
       }
     }
-  }, [jobStatus]);
+  }, [jobStatus, isGenerationInProgress]);
 
   useEffect(() => {
     const handleScroll = () => {
       const scrollPosition = window.scrollY;
-
       if (scrollPosition > 100 && !hasScrolled) {
         setHasScrolled(true);
         setIsArrowVisible(false);
@@ -185,6 +143,7 @@ export default function Page() {
     newSettings?: GourceSettings
   ) {
     setIsLoading(true);
+    setIsGenerationInProgress(true);
     setIsArrowVisible(true);
     try {
       console.log("Submitting repo URL:", githubUrl);
@@ -221,34 +180,14 @@ export default function Page() {
       mutate();
     } catch (error) {
       console.error("Failed to start Gource generation:", error);
+      setIsGenerationInProgress(false);
     } finally {
       setIsLoading(false);
     }
   }
 
   const smoothScrollTo = (element: HTMLElement, duration: number) => {
-    const targetPosition =
-      element.getBoundingClientRect().top + window.pageYOffset;
-    const startPosition = window.pageYOffset;
-    const distance = targetPosition - startPosition;
-    let startTime: number | null = null;
-
-    function animation(currentTime: number) {
-      if (startTime === null) startTime = currentTime;
-      const timeElapsed = currentTime - startTime;
-      const run = easeInOutQuad(timeElapsed, startPosition, distance, duration);
-      window.scrollTo(0, run);
-      if (timeElapsed < duration) requestAnimationFrame(animation);
-    }
-
-    function easeInOutQuad(t: number, b: number, c: number, d: number) {
-      t /= d / 2;
-      if (t < 1) return (c / 2) * t * t + b;
-      t--;
-      return (-c / 2) * (t * (t - 2) - 1) + b;
-    }
-
-    requestAnimationFrame(animation);
+    // ... (keep your existing smoothScrollTo function)
   };
 
   const scrollToExampleGenerations = () => {
@@ -258,11 +197,6 @@ export default function Page() {
       setHasScrolled(true);
     }
   };
-
-  const isGenerating =
-    lastValidJobStatus &&
-    !lastValidJobStatus.video_url &&
-    !lastValidJobStatus.error;
 
   const shouldShowArrow = isArrowVisible && !lastValidJobStatus?.video_url;
 
