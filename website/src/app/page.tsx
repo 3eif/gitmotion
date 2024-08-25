@@ -124,8 +124,10 @@ export default function Page() {
       <div className="w-full max-w-xl mx-auto pt-2 pb-3">
         <GourceInput
           onSubmit={onSubmit}
+          onCancel={async () => {}} // Add an empty onCancel function
           isLoading={isLoading}
           isGenerating={false}
+          initialUrl=""
         />
       </div>
       <ArrowButton

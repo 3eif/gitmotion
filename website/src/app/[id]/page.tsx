@@ -57,6 +57,12 @@ const ArrowButton = ({
   </div>
 );
 
+const LoadingIndicator = () => (
+  <div className="flex justify-center items-center h-20">
+    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>
+  </div>
+);
+
 export default function Page() {
   const params = useParams();
   const router = useRouter();
@@ -64,6 +70,7 @@ export default function Page() {
 
   const [repoUrl, setRepoUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isArrowVisible, setIsArrowVisible] = useState(true);
   const [hasScrolled, setHasScrolled] = useState(false);
   const [lastValidJobStatus, setLastValidJobStatus] =
@@ -85,7 +92,7 @@ export default function Page() {
     error,
     mutate,
   } = useSWR<JobStatus>(
-    shouldPoll ? `/api/gource/status/${jobId}` : null,
+    jobId && shouldPoll ? `/api/gource/status/${jobId}` : null,
     fetcher,
     {
       refreshInterval: 5000,
@@ -105,8 +112,12 @@ export default function Page() {
             setIsGenerationInProgress(true);
           }
         }
+        setIsInitialLoading(false);
       },
-      onError: (err) => console.error("SWR Error:", err),
+      onError: (err) => {
+        console.error("SWR Error:", err);
+        setIsInitialLoading(false);
+      },
     }
   );
 
@@ -121,6 +132,15 @@ export default function Page() {
       }
     }
   }, [jobStatus, isGenerationInProgress]);
+
+  useEffect(() => {
+    if (jobStatus) {
+      setIsGenerationInProgress(
+        jobStatus.step !== ProgressStep.GeneratingVisualization ||
+          (!jobStatus.video_url && !jobStatus.error)
+      );
+    }
+  }, [jobStatus]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -187,7 +207,28 @@ export default function Page() {
   }
 
   const smoothScrollTo = (element: HTMLElement, duration: number) => {
-    // ... (keep your existing smoothScrollTo function)
+    const targetPosition =
+      element.getBoundingClientRect().top + window.pageYOffset;
+    const startPosition = window.pageYOffset;
+    const distance = targetPosition - startPosition;
+    let startTime: number | null = null;
+
+    function animation(currentTime: number) {
+      if (startTime === null) startTime = currentTime;
+      const timeElapsed = currentTime - startTime;
+      const run = easeInOutQuad(timeElapsed, startPosition, distance, duration);
+      window.scrollTo(0, run);
+      if (timeElapsed < duration) requestAnimationFrame(animation);
+    }
+
+    function easeInOutQuad(t: number, b: number, c: number, d: number) {
+      t /= d / 2;
+      if (t < 1) return (c / 2) * t * t + b;
+      t--;
+      return (-c / 2) * (t * (t - 2) - 1) + b;
+    }
+
+    requestAnimationFrame(animation);
   };
 
   const scrollToExampleGenerations = () => {
@@ -203,15 +244,20 @@ export default function Page() {
   return (
     <>
       <div className="">
-        <div className="w-full max-w-xl mx-auto pt-2 pb-3">
-          <GourceInput
-            onSubmit={onSubmit}
-            isLoading={isLoading}
-            isGenerating={isGenerationInProgress}
-            initialUrl={repoUrl}
-            initialSettings={settings}
-          />
-        </div>
+        {isInitialLoading ? (
+          <LoadingIndicator />
+        ) : (
+          <div className="w-full max-w-xl mx-auto pt-2 pb-3">
+            <GourceInput
+              onSubmit={onSubmit}
+              onCancel={async () => {}}
+              isLoading={isLoading}
+              isGenerating={isGenerationInProgress}
+              initialUrl={repoUrl}
+              initialSettings={settings}
+            />
+          </div>
+        )}
         <GourceVideo
           jobStatus={lastValidJobStatus}
           jobId={jobId}

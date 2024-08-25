@@ -15,9 +15,10 @@ use std::fs::{self};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 use tokio::sync::Mutex;
+use tokio::time::interval;
 use url::Url;
 use uuid::Uuid;
 
@@ -154,6 +155,7 @@ async fn start_gource(
 
     HttpResponse::Ok().json(GourceResponse { job_id })
 }
+
 async fn process_gource(
     repo_url: String,
     access_token: Option<String>,
@@ -249,6 +251,46 @@ async fn process_gource(
     .await;
 
     Ok(())
+}
+
+
+
+async fn stop_job(
+    job_id: web::Path<String>,
+    job_store: web::Data<JobStore>,
+) -> impl Responder {
+    let mut store = job_store.lock().await;
+    match store.get_mut(job_id.as_str()) {
+        Some(status) => {
+            if status.step == ProgressStep::GeneratingVisualization && status.video_url.is_none() && status.error.is_none() {
+                status.error = Some("Job stopped by user".to_string());
+                
+                if let Some(temp_dir) = &status.temp_dir {
+                    if let Err(e) = tokio::fs::remove_dir_all(temp_dir).await {
+                        error!("Failed to remove temporary directory for job {}: {:?}", job_id, e);
+                    } else {
+                        info!("Temporary directory for job {} removed successfully", job_id);
+                    }
+                }
+                
+                info!("Job {} stopped by user", job_id);
+                HttpResponse::Ok().json(serde_json::json!({
+                    "message": "Job stopped successfully and temporary files cleaned up"
+                }))
+            } else {
+                info!("Cannot stop job {}: already completed or errored", job_id);
+                HttpResponse::BadRequest().json(serde_json::json!({
+                    "error": "Cannot stop job: already completed or errored"
+                }))
+            }
+        }
+        None => {
+            info!("Job not found: {}", job_id);
+            HttpResponse::NotFound().json(serde_json::json!({
+                "error": "Job not found"
+            }))
+        }
+    }
 }
 
 async fn get_job_status(
@@ -499,6 +541,39 @@ async fn serve_video(req: HttpRequest, job_id: web::Path<String>) -> Result<Http
     }
 }
 
+async fn clear_gource_videos() {
+    let path = Path::new("/gource_videos");
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    
+    if path.exists() && path.is_dir() {
+        match fs::read_dir(path) {
+            Ok(entries) => {
+                for entry in entries.flatten() {
+                    if let Ok(metadata) = entry.metadata() {
+                        if metadata.is_file() {
+                            if let Some(extension) = entry.path().extension() {
+                                if extension == "mp4" {
+                                    if let Ok(created) = metadata.created() {
+                                        let age = now - created.duration_since(UNIX_EPOCH).unwrap().as_secs();
+                                        if age > 3600 { // Only delete files older than 1 hour
+                                            if let Err(e) = fs::remove_file(entry.path()) {
+                                                error!("Failed to remove file {:?}: {}", entry.path(), e);
+                                            } else {
+                                                info!("Removed file: {:?}", entry.path());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Err(e) => error!("Failed to read directory: {}", e),
+        }
+    }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
@@ -515,6 +590,15 @@ async fn main() -> std::io::Result<()> {
 
     let job_store = web::Data::new(JobStore::default());
 
+    // Set up periodic task to clear gource_videos
+    tokio::spawn(async {
+        let mut interval = interval(Duration::from_secs(3600)); // 1 hour
+        loop {
+            interval.tick().await;
+            clear_gource_videos().await;
+        }
+    });
+
     info!("Starting server at http://0.0.0.0:8081");
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -530,6 +614,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/job-status/{job_id}").route(web::get().to(get_job_status)))
             .service(web::resource("/video/{job_id}").route(web::get().to(serve_video)))
             .service(web::resource("/health").route(web::get().to(health_check)))
+            .service(web::resource("/stop/{job_id}").route(web::post().to(stop_job)))
     })
     .bind("0.0.0.0:8081")?
     .run()

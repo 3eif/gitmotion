@@ -16,6 +16,7 @@ interface GourceInputProps {
     accessKey?: string,
     settings?: GourceSettings
   ) => Promise<void>;
+  onCancel: () => Promise<void>;
   isLoading: boolean;
   isGenerating: boolean;
   initialUrl?: string;
@@ -30,6 +31,7 @@ export interface GourceSettings {
 
 export default function Component({
   onSubmit,
+  onCancel,
   isLoading,
   isGenerating,
   initialUrl = "",
@@ -83,6 +85,12 @@ export default function Component({
     }
   }
 
+  async function handleCancel() {
+    if (isGenerating) {
+      await onCancel();
+    }
+  }
+
   const updateSettings = useCallback(
     (key: keyof GourceSettings) => (checked: boolean) => {
       setSettings((prev) => ({ ...prev, [key]: checked }));
@@ -94,15 +102,9 @@ export default function Component({
     !isValidUrl ||
     (isPrivate && !accessKey) ||
     isSubmitting ||
-    isLoading ||
-    isGenerating;
+    isLoading;
 
-  const buttonText =
-    isSubmitting || isLoading
-      ? "In Progress..."
-      : isGenerating
-      ? "Generating..."
-      : "Generate";
+  const buttonText = isSubmitting || isLoading ? "In Progress..." : "Generate";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -182,15 +184,25 @@ export default function Component({
             </PopoverContent>
           </Popover>
           <div className="mx-2 h-4 w-px bg-white/20" aria-hidden="true" />
-          <button
-            type="submit"
-            disabled={isDisabled}
-            className={`select-none text-xs font-medium uppercase transition-colors ${
-              isDisabled ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-          >
-            {buttonText}
-          </button>
+          {isGenerating ? (
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="select-none text-xs font-medium uppercase transition-colors text-red-500 hover:text-red-400"
+            >
+              Cancel
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={isDisabled}
+              className={`select-none text-xs font-medium uppercase transition-colors ${
+                isDisabled ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              {buttonText}
+            </button>
+          )}
         </div>
       </div>
 
