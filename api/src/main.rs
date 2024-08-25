@@ -15,10 +15,9 @@ use std::fs::{self};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Instant;
 use thiserror::Error;
 use tokio::sync::Mutex;
-use tokio::time::interval;
 use url::Url;
 use uuid::Uuid;
 
@@ -229,6 +228,8 @@ async fn process_gource(
 
         if let Err(e) = temp_dir.close() {
             error!("Failed to remove temporary directory: {:?}", e);
+        } else {
+            info!("Temporary directory removed successfully");
         }
 
         result
