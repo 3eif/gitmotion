@@ -15,9 +15,10 @@ use std::fs::{self};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 use tokio::sync::Mutex;
+use tokio::time::interval;
 use url::Url;
 use uuid::Uuid;
 
@@ -258,26 +259,16 @@ async fn process_gource(
     Ok(())
 }
 
-
-
-async fn stop_job(
-    job_id: web::Path<String>,
-    job_store: web::Data<JobStore>,
-) -> impl Responder {
+async fn stop_job(job_id: web::Path<String>, job_store: web::Data<JobStore>) -> impl Responder {
     let mut store = job_store.lock().await;
     match store.get_mut(job_id.as_str()) {
         Some(status) => {
-            if status.step == ProgressStep::GeneratingVisualization && status.video_url.is_none() && status.error.is_none() {
+            if status.step == ProgressStep::GeneratingVisualization
+                && status.video_url.is_none()
+                && status.error.is_none()
+            {
                 status.error = Some("Job stopped by user".to_string());
-                
-                if let Some(temp_dir) = &status.temp_dir {
-                    if let Err(e) = tokio::fs::remove_dir_all(temp_dir).await {
-                        error!("Failed to remove temporary directory for job {}: {:?}", job_id, e);
-                    } else {
-                        info!("Temporary directory for job {} removed successfully", job_id);
-                    }
-                }
-                
+
                 info!("Job {} stopped by user", job_id);
                 HttpResponse::Ok().json(serde_json::json!({
                     "message": "Job stopped successfully and temporary files cleaned up"
@@ -553,34 +544,32 @@ async fn serve_video(req: HttpRequest, job_id: web::Path<String>) -> Result<Http
 
 async fn clear_gource_videos() {
     let path = Path::new("/gource_videos");
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-    
-    if path.exists() && path.is_dir() {
-        match fs::read_dir(path) {
-            Ok(entries) => {
-                for entry in entries.flatten() {
-                    if let Ok(metadata) = entry.metadata() {
-                        if metadata.is_file() {
-                            if let Some(extension) = entry.path().extension() {
-                                if extension == "mp4" {
-                                    if let Ok(created) = metadata.created() {
-                                        let age = now - created.duration_since(UNIX_EPOCH).unwrap().as_secs();
-                                        if age > 3600 { // Only delete files older than 1 hour
-                                            if let Err(e) = fs::remove_file(entry.path()) {
-                                                error!("Failed to remove file {:?}: {}", entry.path(), e);
-                                            } else {
-                                                info!("Removed file: {:?}", entry.path());
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+    let one_hour_ago = SystemTime::now() - Duration::from_secs(3600);
+
+    if let Err(e) = fs::read_dir(path).and_then(|entries| {
+        entries
+            .filter_map(Result::ok)
+            .filter(|entry| {
+                entry.path().extension().map_or(false, |ext| ext == "mp4")
+                    && entry.metadata().map_or(false, |m| m.is_file())
+            })
+            .try_for_each(|entry| {
+                let file_path = entry.path();
+                if entry
+                    .metadata()
+                    .and_then(|m| m.created())
+                    .map_or(false, |created| created < one_hour_ago)
+                {
+                    fs::remove_file(&file_path).map_err(|e| {
+                        error!("Failed to remove file {:?}: {}", file_path, e);
+                        e
+                    })?;
+                    info!("Removed file: {:?}", file_path);
                 }
-            }
-            Err(e) => error!("Failed to read directory: {}", e),
-        }
+                Ok(())
+            })
+    }) {
+        error!("Failed to process directory: {}", e);
     }
 }
 
