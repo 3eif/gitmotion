@@ -209,11 +209,7 @@ async fn process_gource(
     info!("Counting days with commits took {:?}", count_duration);
 
     let seconds_per_day = calculate_seconds_per_day(days_with_commits);
-    let hide_filenames = if total_commits > 100 {
-        "--hide filenames"
-    } else {
-        ""
-    };
+    let hide_filenames = total_commits > 500;
 
     update_job_status(&job_store, &job_id, ProgressStep::GeneratingVisualization).await;
     let output_file = PathBuf::from(format!("/gource_videos/gource_{}.mp4", job_id));
@@ -409,7 +405,7 @@ fn calculate_seconds_per_day(days_with_commits: i32) -> f64 {
 fn generate_gource_visualization(
     temp_dir: &Path,
     seconds_per_day: f64,
-    hide_filenames: &str,
+    hide_filenames: bool,
     output_file: &Path,
     settings: &Option<GourceSettings>,
 ) -> Result<(), GourceError> {
@@ -431,7 +427,7 @@ fn generate_gource_visualization(
     );
 
     let mut hide_elements = vec!["progress"];
-    if hide_filenames.is_empty() {
+    if hide_filenames {
         hide_elements.push("filenames");
     }
 
