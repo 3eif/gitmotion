@@ -54,6 +54,9 @@ struct GourceSettings {
     show_file_extension_key: bool,
     show_usernames: bool,
     show_dirnames: bool,
+    dir_font_size: u32,
+    file_font_size: u32,
+    user_font_size: u32,
 }
 
 #[derive(Error, Debug)]
@@ -226,6 +229,7 @@ async fn process_gource(
             &settings,
         );
 
+        // Explicitly close the temporary directory
         if let Err(e) = temp_dir.close() {
             error!("Failed to remove temporary directory: {:?}", e);
         } else {
@@ -463,10 +467,15 @@ fn generate_gource_visualization(
         --user-scale 0.75 \
         --elasticity 0.01 \
         --background-colour 000000 \
-        --dir-font-size 12 \
+        --dir-font-size {} \
+        --file-font-size {} \
+        --user-font-size {} \
         --stop-at-end",
         temp_dir.to_str().unwrap(),
-        seconds_per_day
+        seconds_per_day,
+        settings.as_ref().map_or(10, |s| s.dir_font_size),
+        settings.as_ref().map_or(10, |s| s.file_font_size),
+        settings.as_ref().map_or(12, |s| s.user_font_size)
     );
 
     let mut hide_elements = vec!["progress"];

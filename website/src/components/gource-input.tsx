@@ -27,6 +27,9 @@ export interface GourceSettings {
   show_file_extension_key: boolean;
   show_usernames: boolean;
   show_dirnames: boolean;
+  dir_font_size: number;
+  file_font_size: number;
+  user_font_size: number;
 }
 
 export default function Component({
@@ -48,6 +51,9 @@ export default function Component({
       show_file_extension_key: false,
       show_usernames: true,
       show_dirnames: true,
+      dir_font_size: 10,
+      file_font_size: 10,
+      user_font_size: 12,
     }
   );
 
@@ -92,17 +98,14 @@ export default function Component({
   }
 
   const updateSettings = useCallback(
-    (key: keyof GourceSettings) => (checked: boolean) => {
-      setSettings((prev) => ({ ...prev, [key]: checked }));
+    (key: keyof GourceSettings) => (value: boolean | number) => {
+      setSettings((prev) => ({ ...prev, [key]: value }));
     },
     []
   );
 
   const isDisabled =
-    !isValidUrl ||
-    (isPrivate && !accessKey) ||
-    isSubmitting ||
-    isLoading;
+    !isValidUrl || (isPrivate && !accessKey) || isSubmitting || isLoading;
 
   const buttonText = isSubmitting || isLoading ? "In Progress..." : "Generate";
 

@@ -82,6 +82,9 @@ export default function Page() {
     show_file_extension_key: false,
     show_usernames: true,
     show_dirnames: true,
+    dir_font_size: 10,
+    file_font_size: 10,
+    user_font_size: 12,
   });
 
   const videoRef = useRef<HTMLDivElement>(null);
