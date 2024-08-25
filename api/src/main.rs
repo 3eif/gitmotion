@@ -412,7 +412,7 @@ fn generate_gource_visualization(
     let mut gource_command = format!(
         "xvfb-run -a gource {} -1920x1200 \
         --seconds-per-day {} \
-        --auto-skip-seconds 0.01 \
+        --auto-skip-seconds 0.001 \
         --max-user-speed 500 \
         --output-framerate 30 \
         --multi-sampling \

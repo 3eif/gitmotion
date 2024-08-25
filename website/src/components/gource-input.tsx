@@ -203,7 +203,7 @@ export default function Component({
               onChange={(e) => setAccessKey(e.target.value)}
               placeholder="Private Access Key"
               className={`w-full appearance-none rounded-lg border-[1.5px] border-white/10 bg-transparent py-2 px-3 text-white placeholder-white/20 outline-none transition-all hover:border-white/20 focus:border-white/30 ${
-                !isPrivate ? "opacity-20" : ""
+                !isPrivate ? "opacity-30" : ""
               }`}
               disabled={!isPrivate || isSubmitting || isGenerating}
             />

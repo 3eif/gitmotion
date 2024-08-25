@@ -4,17 +4,38 @@ export default function Footer() {
       <div className="max-w-7xl px-8 mx-auto">
         <div className="mx-auto border-t border-gray-600 pt-6">
           <div className="flex justify-between items-center text-sm text-neutral-200 px-2">
-            <p className="text-md">
-              Created by{" "}
-              <a
-                href="https://3eif.com"
-                className="hover:text-transparent hover:bg-clip-text hover:bg-gradient-to-b from-blue-400 to-blue-900 font-bold"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Seif Abdelaziz
-              </a>
-            </p>
+            <div>
+              <p className="text-md">
+                Created by{" "}
+                <a
+                  href="https://3eif.com"
+                  className="border-b border-dotted border-neutral-200 hover:text-transparent hover:bg-clip-text hover:bg-gradient-to-b from-blue-400 to-blue-900 font-bold"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Seif Abdelaziz
+                </a>
+                . Powered by{" "}
+                <a
+                  href="https://ffmpeg.org/"
+                  className="border-b border-dotted border-neutral-200 hover:text-blue-400"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  FFmpeg
+                </a>{" "}
+                and{" "}
+                <a
+                  href="https://gource.io/"
+                  className="border-b border-dotted border-neutral-200 hover:text-blue-400"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Gource
+                </a>
+                .
+              </p>
+            </div>
             <div className="flex items-center gap-4">
               <a
                 href="https://twitter.com/sabziz"

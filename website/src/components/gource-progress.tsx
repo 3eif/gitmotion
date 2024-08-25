@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import React, { useEffect, useState, useCallback } from "react"
+import React, { useEffect, useState, useCallback } from "react";
 
 export enum ProgressStep {
   InitializingProject = 1,
@@ -24,37 +24,40 @@ const steps = [
     name: "Generating Visualization",
     step: ProgressStep.GeneratingVisualization,
   },
-]
+];
 
 interface GourceProgressProps {
-  currentStep: ProgressStep
+  currentStep: ProgressStep;
 }
 
 export default function GourceProgress({ currentStep }: GourceProgressProps) {
-  const [progress, setProgress] = useState(0)
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setProgress((oldProgress) => (oldProgress + 2) % 101)
-    }, 30)
+      setProgress((oldProgress) => (oldProgress + 2) % 101);
+    }, 30);
 
     return () => {
-      clearInterval(timer)
-    }
-  }, [])
+      clearInterval(timer);
+    };
+  }, []);
 
-  const getGradient = useCallback((step: ProgressStep) => {
-    if (step < currentStep) {
-      return "linear-gradient(to right, #2B20A5, #171D4C)"
-    } else if (step === currentStep) {
-      return `linear-gradient(to right, #4338ca, #171D4C ${progress}%, #e5e7eb ${progress}%)`
-    } else {
-      return "linear-gradient(to right, #e5e7eb, #e5e7eb)"
-    }
-  }, [currentStep, progress])
+  const getGradient = useCallback(
+    (step: ProgressStep) => {
+      if (step < currentStep) {
+        return "linear-gradient(to right, #2B20A5, #261E75)";
+      } else if (step === currentStep) {
+        return `linear-gradient(to right, #4338ca, #261E75 ${progress}%, #e5e7eb ${progress}%)`;
+      } else {
+        return "linear-gradient(to right, #e5e7eb, #e5e7eb)";
+      }
+    },
+    [currentStep, progress]
+  );
 
   return (
-    <nav aria-label="Progress" className="w-full mx-auto pt-10">
+    <nav aria-label="Progress" className="w-full mx-aputo pt-10">
       <ol role="list" className="flex space-x-8">
         {steps.map((step, index) => (
           <li key={step.name} className="flex-1">
@@ -62,20 +65,25 @@ export default function GourceProgress({ currentStep }: GourceProgressProps) {
               <div className="flex items-center">
                 <div className="relative flex-1">
                   {index !== 0 && (
-                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div
+                      className="absolute inset-0 flex items-center"
+                      aria-hidden="true"
+                    >
                       <div className="h-0.5 w-full bg-gray-200"></div>
                     </div>
                   )}
-                  <div
-                    className="relative w-full h-2 bg-gray-200 rounded-full overflow-hidden"
-                  >
+                  <div className="relative w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                     <div
                       className="absolute top-0 left-0 right-0 bottom-0 transition-all duration-300 ease-in-out rounded-full"
                       style={{
-                        width: step.step <= currentStep ? "101%" : // Slightly over 100% to cover edges
-                               step.step === currentStep ? `${progress}%` : "0%",
+                        width:
+                          step.step <= currentStep
+                            ? "101%" // Slightly over 100% to cover edges
+                            : step.step === currentStep
+                            ? `${progress}%`
+                            : "0%",
                         backgroundImage: getGradient(step.step),
-                        transform: 'translateX(-0.5%)', // Shift slightly to cover both edges
+                        transform: "translateX(-0.5%)", // Shift slightly to cover both edges
                       }}
                     />
                   </div>
@@ -83,7 +91,7 @@ export default function GourceProgress({ currentStep }: GourceProgressProps) {
               </div>
               <span
                 className={`text-sm font-medium mt-2 ${
-                  step.step <= currentStep ? "text-indigo-600" : "text-gray-500"
+                  step.step <= currentStep ? "text-indigo-500" : "text-gray-500"
                 }`}
               >
                 {step.id}
@@ -96,8 +104,9 @@ export default function GourceProgress({ currentStep }: GourceProgressProps) {
         ))}
       </ol>
       <p className="text-sm text-gray-500 mb-4 text-center pt-8">
-        This process might take a few minutes, especially for larger repositories.
+        This process might take a few minutes, especially for larger
+        repositories.
       </p>
     </nav>
-  )
+  );
 }
