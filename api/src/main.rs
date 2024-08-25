@@ -28,13 +28,6 @@ struct GourceRequest {
     settings: Option<GourceSettings>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug)]
-struct GourceSettings {
-    show_file_extension_key: bool,
-    show_usernames: bool,
-    show_dirnames: bool,
-}
-
 #[derive(Serialize, Clone)]
 struct GourceResponse {
     job_id: String,
@@ -53,6 +46,14 @@ struct JobStatus {
     video_url: Option<String>,
     repo_url: String,
     error: Option<String>,
+    settings: GourceSettings,
+}
+
+#[derive(Default, Serialize, Deserialize, Clone, Debug)]
+struct GourceSettings {
+    show_file_extension_key: bool,
+    show_usernames: bool,
+    show_dirnames: bool,
 }
 
 #[derive(Error, Debug)]
@@ -114,7 +115,7 @@ async fn start_gource(
     let job_id = Uuid::new_v4().to_string();
     let repo_url = repo_request.repo_url.clone();
     let access_token = repo_request.access_token.clone();
-    let settings = repo_request.settings.clone();
+    let settings = repo_request.settings.clone().unwrap_or_default();
 
     {
         let mut store = job_store.lock().await;
@@ -125,6 +126,7 @@ async fn start_gource(
                 video_url: None,
                 repo_url: repo_url.clone(),
                 error: None,
+                settings: settings.clone(),
             },
         );
     }
@@ -136,7 +138,7 @@ async fn start_gource(
         if let Err(e) = process_gource(
             repo_url,
             access_token,
-            settings,
+            Some(settings),
             job_id_clone.clone(),
             job_store_clone.clone(),
         )

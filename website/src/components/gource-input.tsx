@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState, useCallback } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
@@ -19,12 +19,13 @@ interface GourceInputProps {
   isLoading: boolean;
   isGenerating: boolean;
   initialUrl?: string;
+  initialSettings?: GourceSettings;
 }
 
 export interface GourceSettings {
-  showFileExtensionKey: boolean;
-  showUsernames: boolean;
-  showDirnames: boolean;
+  show_file_extension_key: boolean;
+  show_usernames: boolean;
+  show_dirnames: boolean;
 }
 
 export default function Component({
@@ -32,6 +33,7 @@ export default function Component({
   isLoading,
   isGenerating,
   initialUrl = "",
+  initialSettings,
 }: GourceInputProps) {
   const [repoUrl, setRepoUrl] = useState(initialUrl);
   const [isPrivate, setIsPrivate] = useState(false);
@@ -39,17 +41,23 @@ export default function Component({
   const [isValidUrl, setIsValidUrl] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [settings, setSettings] = useState<GourceSettings>({
-    showFileExtensionKey: true,
-    showUsernames: true,
-    showDirnames: true,
-  });
+  const [settings, setSettings] = useState<GourceSettings>(
+    initialSettings || {
+      show_file_extension_key: false,
+      show_usernames: true,
+      show_dirnames: true,
+    }
+  );
 
   useEffect(() => {
-    if (!isPrivate) {
-      setAccessKey("");
+    console.log("Settings updated:", settings);
+  }, [settings]);
+
+  useEffect(() => {
+    if (initialSettings) {
+      setSettings(initialSettings);
     }
-  }, [isPrivate]);
+  }, [initialSettings]);
 
   useEffect(() => {
     const urlRegex =
@@ -74,6 +82,13 @@ export default function Component({
       }
     }
   }
+
+  const updateSettings = useCallback(
+    (key: keyof GourceSettings) => (checked: boolean) => {
+      setSettings((prev) => ({ ...prev, [key]: checked }));
+    },
+    []
+  );
 
   const isDisabled =
     !isValidUrl ||
@@ -127,13 +142,9 @@ export default function Component({
                   </Label>
                   <Switch
                     id="show-file-extension-key"
-                    checked={settings.showFileExtensionKey}
-                    onCheckedChange={(checked) =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        showFileExtensionKey: checked,
-                      }))
-                    }
+                    checked={settings.show_file_extension_key}
+                    onCheckedChange={updateSettings("show_file_extension_key")}
+                    disabled={isGenerating || isLoading}
                     className="bg-white/20 data-[state=checked]:bg-blurple data-[state=unchecked]:bg-gray-800"
                   />
                 </div>
@@ -146,13 +157,9 @@ export default function Component({
                   </Label>
                   <Switch
                     id="show-usernames"
-                    checked={settings.showUsernames}
-                    onCheckedChange={(checked) =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        showUsernames: checked,
-                      }))
-                    }
+                    checked={settings.show_usernames}
+                    onCheckedChange={updateSettings("show_usernames")}
+                    disabled={isGenerating || isLoading}
                     className="bg-white/20 data-[state=checked]:bg-blurple data-[state=unchecked]:bg-gray-800"
                   />
                 </div>
@@ -165,13 +172,9 @@ export default function Component({
                   </Label>
                   <Switch
                     id="show-dirnames"
-                    checked={settings.showDirnames}
-                    onCheckedChange={(checked) =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        showDirnames: checked,
-                      }))
-                    }
+                    checked={settings.show_dirnames}
+                    onCheckedChange={updateSettings("show_dirnames")}
+                    disabled={isGenerating || isLoading}
                     className="bg-white/20 data-[state=checked]:bg-blurple data-[state=unchecked]:bg-gray-800"
                   />
                 </div>

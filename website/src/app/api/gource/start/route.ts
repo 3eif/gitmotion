@@ -15,7 +15,6 @@ function encryptToken(token: string): string {
     throw new Error("SECRET_KEY environment variable is not set");
   }
 
-  // Use the full SECRET_KEY to derive a 32-byte key
   const key = crypto
     .createHash("sha256")
     .update(String(process.env.SECRET_KEY))
@@ -64,13 +63,17 @@ async function sendRequestToRustServer(
   access_token?: string,
   settings?: GourceSettings
 ) {
-  const body = {
-    repo_url,
-    ...(access_token && { access_token }),
-    ...(settings && { settings }),
-  };
+  const body: any = { repo_url };
 
-  console.log("Sending request to Rust server:", access_token);
+  if (access_token) {
+    body.access_token = access_token;
+  }
+
+  if (settings) {
+    body.settings = settings;
+  }
+
+  console.log("Sending request to Rust server:", body);
 
   const response = await fetch(`${process.env.API_URL}/start-gource`, {
     method: "POST",
@@ -79,7 +82,10 @@ async function sendRequestToRustServer(
   });
 
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    const errorText = await response.text();
+    throw new Error(
+      `HTTP error! status: ${response.status}, message: ${errorText}`
+    );
   }
 
   return response.json();

@@ -15,6 +15,7 @@ interface JobStatus {
   video_url: string | null;
   repo_url: string;
   error: string | null;
+  settings: GourceSettings;
 }
 
 const fetcher = async (url: string) => {
@@ -72,6 +73,11 @@ export default function Page() {
   const [isJobCompleted, setIsJobCompleted] = useState(false);
   const [shouldPoll, setShouldPoll] = useState(true);
   const [isGenerationInProgress, setIsGenerationInProgress] = useState(false);
+  const [settings, setSettings] = useState<GourceSettings>({
+    show_file_extension_key: false,
+    show_usernames: true,
+    show_dirnames: true,
+  });
 
   const videoRef = useRef<HTMLDivElement>(null);
   const exampleGenerationsRef = useRef<HTMLDivElement>(null);
@@ -85,7 +91,7 @@ export default function Page() {
     fetcher,
     {
       refreshInterval: 5000,
-      revalidateOnFocus: false,
+      revalidateOnFocus: true,
       dedupingInterval: 1000,
       onSuccess: (data) => {
         if (data) {
@@ -94,6 +100,9 @@ export default function Page() {
           console.log("Parsed step type:", typeof data.step);
           setLastValidJobStatus(data);
           setRepoUrl(data.repo_url);
+          if (data.settings) {
+            setSettings(data.settings);
+          }
           if (data.video_url || data.error) {
             setIsJobCompleted(true);
             setShouldPoll(false);
@@ -173,7 +182,7 @@ export default function Page() {
   async function onSubmit(
     githubUrl: string,
     accessToken?: string,
-    settings?: GourceSettings
+    newSettings?: GourceSettings
   ) {
     setIsLoading(true);
     setIsArrowVisible(true);
@@ -187,6 +196,7 @@ export default function Page() {
         body: JSON.stringify({
           repo_url: githubUrl,
           access_token: accessToken,
+          settings: newSettings || settings,
         }),
       });
       if (!response.ok) {
@@ -203,6 +213,9 @@ export default function Page() {
       setLastValidJobStatus(null);
       setIsJobCompleted(false);
       setShouldPoll(true);
+      if (newSettings) {
+        setSettings(newSettings);
+      }
 
       // Trigger a new data fetch for the new job ID
       mutate();
@@ -260,8 +273,9 @@ export default function Page() {
           <GourceInput
             onSubmit={onSubmit}
             isLoading={isLoading}
-            isGenerating={false}
+            isGenerating={isGenerationInProgress}
             initialUrl={repoUrl}
+            initialSettings={settings}
           />
         </div>
         <GourceVideo
