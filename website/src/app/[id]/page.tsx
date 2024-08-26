@@ -8,6 +8,7 @@ import GourceVideo from "@/components/gource-video";
 import { ChevronDownIcon } from "@heroicons/react/16/solid";
 import { useState, useRef, useEffect } from "react";
 import useSWR from "swr";
+import { Icons } from "@/components/ui/icons";
 
 interface JobStatus {
   step: ProgressStep;
@@ -25,7 +26,10 @@ const fetcher = async (url: string) => {
     },
   });
   if (!res.ok) {
-    throw new Error("An error occurred while fetching the data.");
+    const errorData = await res.json();
+    throw new Error(
+      errorData.message || "An error occurred while fetching the data."
+    );
   }
   const data = await res.json();
   if (typeof data.step === "string") {
@@ -58,8 +62,8 @@ const ArrowButton = ({
 );
 
 const LoadingIndicator = () => (
-  <div className="flex justify-center items-center h-20">
-    <div className="animate-spin rounded-full h-8 w-8 border-2 border-white border-opacity-25 border-t-white"></div>
+  <div className="flex h-full items-center justify-center">
+    <Icons.spinner className="h-8 w-8 animate-spin" />
   </div>
 );
 
@@ -118,8 +122,9 @@ export default function Page() {
         setIsInitialLoading(false);
       },
       onError: (err) => {
-        console.error("SWR Error:", err);
+        console.error("SWR Error:", err.message);
         setIsInitialLoading(false);
+        setIsGenerationInProgress(false);
       },
     }
   );

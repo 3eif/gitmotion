@@ -85,6 +85,9 @@ export default function Component({
       setIsSubmitting(true);
       try {
         await onSubmit(repoUrl, isPrivate ? accessKey : undefined, settings);
+      } catch (error) {
+        console.error("Error submitting job:", error);
+        // The error will be handled in the parent component
       } finally {
         setIsSubmitting(false);
       }

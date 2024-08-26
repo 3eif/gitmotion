@@ -359,10 +359,7 @@ async fn stop_job(job_id: web::Path<String>, job_store: web::Data<JobStore>) -> 
     let mut store = job_store.lock().await;
     let response = match store.get_mut(job_id.as_str()) {
         Some(status) => {
-            if status.step == ProgressStep::GeneratingVisualization
-                && status.video_url.is_none()
-                && status.error.is_none()
-            {
+            if status.video_url.is_none() && status.error.is_none() {
                 status.error = Some("Job stopped by user".to_string());
 
                 log_message(

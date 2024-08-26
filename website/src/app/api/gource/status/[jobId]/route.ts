@@ -13,9 +13,6 @@ export async function GET(
     });
 
     if (!response.ok) {
-      if (response.status === 404) {
-        return NextResponse.json({ error: "Job not found" }, { status: 404 });
-      }
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
@@ -24,8 +21,17 @@ export async function GET(
     return NextResponse.json(data);
   } catch (error) {
     console.error("Error fetching job status:", error);
+    if (error instanceof Error && error.message.includes("404")) {
+      return NextResponse.json(
+        {
+          message:
+            "Job not found. The video you're looking for most likely expired.",
+        },
+        { status: 404 }
+      );
+    }
     return NextResponse.json(
-      { error: "Failed to fetch job status" },
+      { message: "Failed to fetch job status" },
       { status: 500 }
     );
   }

@@ -8,11 +8,30 @@ export default function Footer() {
               Created by{" "}
               <a
                 href="https://3eif.com"
-                className="hover:text-transparent hover:bg-clip-text hover:bg-gradient-to-b from-blue-400 to-blue-900 font-bold"
+                className="hover:text-transparent hover:bg-clip-text hover:bg-gradient-to-b from-blue-400 to-blue-600 font-bold border-b border-dotted border-current"
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 Seif Abdelaziz
+              </a>
+              {" • "}
+              Powered by{" "}
+              <a
+                href="https://ffmpeg.org/"
+                className="hover:text-transparent hover:bg-clip-text hover:bg-gradient-to-b from-blue-400 to-blue-600 font-bold border-b border-dotted border-current"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                FFmpeg
+              </a>
+              {" & "}
+              <a
+                href="https://gource.io/"
+                className="hover:text-transparent hover:bg-clip-text hover:bg-gradient-to-b from-blue-400 to-blue-600 font-bold border-b border-dotted border-current"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Gource
               </a>
             </p>
             <div className="flex items-center gap-4">
