@@ -324,7 +324,7 @@ async fn process_gource(
     log_message(
         log::Level::Info,
         &format!("Gource visualization generation took {:?}", gource_duration),
-        Some(&job_id),
+        None,
     );
 
     let total_duration = start_time.elapsed();
