@@ -8,7 +8,9 @@ use crypto::sha2::Sha256;
 use crypto::symmetriccipher::Decryptor;
 use crypto::{aes, buffer};
 use hex;
-use log::{error, info};
+use log::{error, info, warn, debug, trace, LevelFilter};
+use env_logger::Builder;
+use std::io::Write;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::{self};
@@ -112,11 +114,25 @@ fn decrypt_token(encrypted_token: &str, secret_key: &str) -> Result<String, Gour
     String::from_utf8(buffer).map_err(|_| GourceError::DecryptionFailed)
 }
 
+// Updated logging function that can handle both cases
+fn log_message(level: log::Level, message: &str, job_id: Option<&str>) {
+    let target = job_id.map_or("gitmotion_api".to_string(), |id| format!("job-{}", id));
+    match level {
+        log::Level::Error => log::error!(target: &target, "{}", message),
+        log::Level::Warn => log::warn!(target: &target, "{}", message),
+        log::Level::Info => log::info!(target: &target, "{}", message),
+        log::Level::Debug => log::debug!(target: &target, "{}", message),
+        log::Level::Trace => log::trace!(target: &target, "{}", message),
+    }
+}
+
 async fn start_gource(
     repo_request: web::Json<GourceRequest>,
     job_store: web::Data<JobStore>,
 ) -> impl Responder {
     let job_id = Uuid::new_v4().to_string();
+    log_message(log::Level::Info, &format!("Starting new job with ID: {}", job_id), None);
+
     let repo_url = repo_request.repo_url.clone();
     let access_token = repo_request.access_token.clone();
     let settings = repo_request.settings.clone().unwrap_or_default();
@@ -148,6 +164,7 @@ async fn start_gource(
         )
         .await
         {
+            log_message(log::Level::Error, &format!("Job failed: {}", e), Some(&job_id_clone));
             let mut store = job_store_clone.lock().await;
             if let Some(status) = store.get_mut(&job_id_clone) {
                 status.step = ProgressStep::GeneratingVisualization;
@@ -166,54 +183,54 @@ async fn process_gource(
     job_id: String,
     job_store: web::Data<JobStore>,
 ) -> Result<(), GourceError> {
-    info!("Starting process_gource for job {}", job_id);
+    log_message(log::Level::Info, "Starting process_gource", Some(&job_id));
     let start_time = Instant::now();
 
     update_job_status(&job_store, &job_id, ProgressStep::InitializingProject).await;
-    info!("Updated job status to InitializingProject");
+    log_message(log::Level::Info, "Updated job status to InitializingProject", Some(&job_id));
 
     let url = Url::parse(&repo_url).map_err(|_| GourceError::InvalidUrl)?;
     if url.host_str() != Some("github.com") {
         return Err(GourceError::UnsupportedRepository);
     }
-    info!("Validated repository URL");
+    log_message(log::Level::Info, &format!("Validated repository URL: {}", repo_url), Some(&job_id));
 
     let temp_dir = tempfile::TempDir::new().map_err(|_| GourceError::TempDirCreationFailed)?;
-    info!("Created temporary directory");
+    log_message(log::Level::Info, "Created temporary directory", Some(&job_id));
 
     let clone_start = Instant::now();
-    info!("Attempting to decrypt token");
+    log_message(log::Level::Info, "Attempting to decrypt token", Some(&job_id));
     let decrypted_token = if let Some(encrypted_token) = access_token {
-        info!("Access token provided, attempting decryption");
+        log_message(log::Level::Info, "Access token provided, attempting decryption", Some(&job_id));
         let secret_key = std::env::var("SECRET_KEY").expect("SECRET_KEY must be set");
-        info!("SECRET_KEY found, length: {}", secret_key.len());
+        log_message(log::Level::Info, &format!("SECRET_KEY found, length: {}", secret_key.len()), Some(&job_id));
         match decrypt_token(&encrypted_token, &secret_key) {
             Ok(token) => {
-                info!("Token decrypted successfully");
+                log_message(log::Level::Info, "Token decrypted successfully", Some(&job_id));
                 Some(token)
             }
             Err(e) => {
-                error!("Failed to decrypt token: {:?}", e);
+                log_message(log::Level::Error, &format!("Failed to decrypt token: {:?}", e), Some(&job_id));
                 return Err(e);
             }
         }
     } else {
-        info!("No access token provided");
+        log_message(log::Level::Info, "No access token provided", Some(&job_id));
         None
     };
 
-    info!("Attempting to clone repository");
-    clone_repository(&repo_url, temp_dir.path(), decrypted_token.as_deref())?;
+    log_message(log::Level::Info, "Attempting to clone repository", Some(&job_id));
+    clone_repository(&repo_url, temp_dir.path(), decrypted_token.as_deref(), Some(&job_id))?;
     let clone_duration = clone_start.elapsed();
-    info!("Repository cloning took {:?}", clone_duration);
+    log_message(log::Level::Info, &format!("Repository cloning took {:?}", clone_duration), Some(&job_id));
 
     update_job_status(&job_store, &job_id, ProgressStep::AnalyzingHistory).await;
     let count_start = Instant::now();
-    let (days_with_commits, total_commits) = count_days_and_commits(temp_dir.path())?;
+    let (days_with_commits, total_commits) = count_days_and_commits(temp_dir.path(), Some(&job_id))?;
     let count_duration = count_start.elapsed();
-    info!("Counting days with commits took {:?}", count_duration);
+    log_message(log::Level::Info, &format!("Counting days with commits took {:?}", count_duration), Some(&job_id));
 
-    let seconds_per_day = calculate_seconds_per_day(days_with_commits);
+    let seconds_per_day = calculate_seconds_per_day(days_with_commits, Some(&job_id));
     let hide_filenames = total_commits > 500;
 
     update_job_status(&job_store, &job_id, ProgressStep::GeneratingVisualization).await;
@@ -228,13 +245,14 @@ async fn process_gource(
             hide_filenames,
             &output_file,
             &settings,
+            Some(&job_id),
         );
 
         // Explicitly close the temporary directory
         if let Err(e) = temp_dir.close() {
-            error!("Failed to remove temporary directory: {:?}", e);
+            log_message(log::Level::Error, &format!("Failed to remove temporary directory: {:?}", e), Some(&job_id));
         } else {
-            info!("Temporary directory removed successfully");
+            log_message(log::Level::Info, "Temporary directory removed successfully", Some(&job_id));
         }
 
         result
@@ -243,10 +261,10 @@ async fn process_gource(
     .map_err(|_| GourceError::GourceGenerationFailed)??;
 
     let gource_duration = gource_start.elapsed();
-    info!("Gource visualization generation took {:?}", gource_duration);
+    log_message(log::Level::Info, &format!("Gource visualization generation took {:?}", gource_duration), Some(&job_id));
 
     let total_duration = start_time.elapsed();
-    info!("Total process took {:?}", total_duration);
+    log_message(log::Level::Info, &format!("Total process took {:?}", total_duration), Some(&job_id));
 
     update_job_status(&job_store, &job_id, ProgressStep::GeneratingVisualization).await;
     set_video_url(
@@ -269,19 +287,19 @@ async fn stop_job(job_id: web::Path<String>, job_store: web::Data<JobStore>) -> 
             {
                 status.error = Some("Job stopped by user".to_string());
 
-                info!("Job {} stopped by user", job_id);
+                log_message(log::Level::Info, &format!("Job {} stopped by user", job_id), Some(job_id.as_str()));
                 HttpResponse::Ok().json(serde_json::json!({
                     "message": "Job stopped successfully and temporary files cleaned up"
                 }))
             } else {
-                info!("Cannot stop job {}: already completed or errored", job_id);
+                log_message(log::Level::Info, &format!("Cannot stop job {}: already completed or errored", job_id), Some(job_id.as_str()));
                 HttpResponse::BadRequest().json(serde_json::json!({
                     "error": "Cannot stop job: already completed or errored"
                 }))
             }
         }
         None => {
-            info!("Job not found: {}", job_id);
+            log_message(log::Level::Info, &format!("Job not found: {}", job_id), Some(job_id.as_str()));
             HttpResponse::NotFound().json(serde_json::json!({
                 "error": "Job not found"
             }))
@@ -296,14 +314,11 @@ async fn get_job_status(
     let store = job_store.lock().await;
     match store.get(job_id.as_str()) {
         Some(status) => {
-            info!(
-                "Returning job status for {}: step={:?}, video_url={:?}",
-                job_id, status.step, status.video_url
-            );
+            log_message(log::Level::Info, &format!("Returning job status for {}: step={:?}, video_url={:?}", job_id, status.step, status.video_url), Some(job_id.as_str()));
             HttpResponse::Ok().json(status.clone())
         }
         None => {
-            info!("Job not found: {}", job_id);
+            log_message(log::Level::Info, &format!("Job not found: {}", job_id), Some(job_id.as_str()));
             HttpResponse::NotFound().json(serde_json::json!({
                 "error": "Job not found"
             }))
@@ -329,8 +344,9 @@ fn clone_repository(
     repo_url: &str,
     temp_dir: &Path,
     github_token: Option<&str>,
+    job_id: Option<&str>,
 ) -> Result<(), GourceError> {
-    info!("Cloning repository: {}", repo_url);
+    log_message(log::Level::Info, &format!("Cloning repository: {}", repo_url), job_id);
 
     let mut url = Url::parse(repo_url).map_err(|_| GourceError::InvalidUrl)?;
 
@@ -357,19 +373,16 @@ fn clone_repository(
 
     if !output.status.success() {
         let error_message = String::from_utf8_lossy(&output.stderr);
-        error!("Git clone failed: {}", error_message);
+        log_message(log::Level::Error, &format!("Git clone failed: {}", error_message), job_id);
         return Err(GourceError::CloneFailed);
     }
 
-    info!("Successfully cloned repository");
+    log_message(log::Level::Info, "Successfully cloned repository", job_id);
     Ok(())
 }
 
-fn count_days_and_commits(repo_path: &Path) -> Result<(i32, i32), GourceError> {
-    info!(
-        "Counting days with commits and total commits in repository at: {:?}",
-        repo_path
-    );
+fn count_days_and_commits(repo_path: &Path, job_id: Option<&str>) -> Result<(i32, i32), GourceError> {
+    log_message(log::Level::Info, &format!("Counting days with commits and total commits in repository at: {:?}", repo_path), job_id);
 
     let commit_output = Command::new("git")
         .args(&["rev-list", "--count", "HEAD"])
@@ -378,10 +391,8 @@ fn count_days_and_commits(repo_path: &Path) -> Result<(i32, i32), GourceError> {
         .map_err(|_| GourceError::CommitCountFailed)?;
 
     if !commit_output.status.success() {
-        error!(
-            "Git commit count failed: {}",
-            String::from_utf8_lossy(&commit_output.stderr)
-        );
+        let error_message = String::from_utf8_lossy(&commit_output.stderr);
+        log_message(log::Level::Error, &format!("Git commit count failed: {}", error_message), job_id);
         return Err(GourceError::CommitCountFailed);
     }
 
@@ -398,10 +409,8 @@ fn count_days_and_commits(repo_path: &Path) -> Result<(i32, i32), GourceError> {
         .map_err(|_| GourceError::CommitCountFailed)?;
 
     if !log_output.status.success() {
-        error!(
-            "Git log failed: {}",
-            String::from_utf8_lossy(&log_output.stderr)
-        );
+        let error_message = String::from_utf8_lossy(&log_output.stderr);
+        log_message(log::Level::Error, &format!("Git log failed: {}", error_message), job_id);
         return Err(GourceError::CommitCountFailed);
     }
 
@@ -415,7 +424,7 @@ fn count_days_and_commits(repo_path: &Path) -> Result<(i32, i32), GourceError> {
     Ok((count_days, total_commits))
 }
 
-fn calculate_seconds_per_day(days_with_commits: i32) -> f64 {
+fn calculate_seconds_per_day(days_with_commits: i32, job_id: Option<&str>) -> f64 {
     const MIN_DURATION: f64 = 50.0;
     const MAX_DURATION: f64 = 90.0;
     const THRESHOLD: i32 = 1000;
@@ -432,10 +441,7 @@ fn calculate_seconds_per_day(days_with_commits: i32) -> f64 {
 
     let clamped_seconds = seconds_per_day.clamp(0.00001, 2.0);
 
-    info!(
-        "Calculated seconds per day: {} for {} days with commits. Target duration: {}",
-        clamped_seconds, days_with_commits, target_duration
-    );
+    log_message(log::Level::Info, &format!("Calculated seconds per day: {} for {} days with commits. Target duration: {}", clamped_seconds, days_with_commits, target_duration), job_id);
 
     clamped_seconds
 }
@@ -446,6 +452,7 @@ fn generate_gource_visualization(
     hide_filenames: bool,
     output_file: &Path,
     settings: &Option<GourceSettings>,
+    job_id: Option<&str>,
 ) -> Result<(), GourceError> {
     let mut gource_command = format!(
         "xvfb-run -a gource {} -1920x1200 \
@@ -500,7 +507,7 @@ fn generate_gource_visualization(
         output_file.to_str().unwrap()
     ));
 
-    info!("Running gource command: {}", gource_command);
+    log_message(log::Level::Info, &format!("Running gource command: {}", gource_command), job_id);
 
     let output = Command::new("sh")
         .arg("-c")
@@ -509,10 +516,8 @@ fn generate_gource_visualization(
         .map_err(|_| GourceError::GourceGenerationFailed)?;
 
     if !output.status.success() {
-        error!(
-            "Gource generation failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
+        let error_message = String::from_utf8_lossy(&output.stderr);
+        log_message(log::Level::Error, &format!("Gource generation failed: {}", error_message), job_id);
         return Err(GourceError::GourceGenerationFailed);
     }
 
@@ -561,21 +566,34 @@ async fn clear_gource_videos() {
                     .map_or(false, |created| created < one_hour_ago)
                 {
                     fs::remove_file(&file_path).map_err(|e| {
-                        error!("Failed to remove file {:?}: {}", file_path, e);
+                        log_message(log::Level::Error, &format!("Failed to remove file {:?}: {}", file_path, e), None);
                         e
                     })?;
-                    info!("Removed file: {:?}", file_path);
+                    log_message(log::Level::Info, &format!("Removed file: {:?}", file_path), None);
                 }
                 Ok(())
             })
     }) {
-        error!("Failed to process directory: {}", e);
+        log_message(log::Level::Error, &format!("Failed to process directory: {}", e), None);
     }
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    env_logger::init();
+    // Custom logger configuration
+    Builder::new()
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{} {} [{}] {}",
+                buf.timestamp(),
+                record.level(),
+                record.target(),
+                record.args()
+            )
+        })
+        .filter(None, LevelFilter::Info)
+        .init();
 
     let output_dir = Path::new("/gource_videos");
     if !output_dir.exists() {
@@ -583,7 +601,7 @@ async fn main() -> std::io::Result<()> {
     }
 
     if let Err(e) = check_dependencies() {
-        error!("Dependency check failed: {}", e);
+        log_message(log::Level::Error, &format!("Dependency check failed: {}", e), None);
         return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
     }
 
@@ -598,7 +616,7 @@ async fn main() -> std::io::Result<()> {
         }
     });
 
-    info!("Starting server at http://0.0.0.0:8081");
+    log_message(log::Level::Info, "Starting server at http://0.0.0.0:8081", None);
     HttpServer::new(move || {
         let cors = Cors::default()
             .allow_any_origin()

@@ -158,7 +158,7 @@ export default function Component({
                     htmlFor="show-usernames"
                     className="text-xs text-gray-300"
                   >
-                    Show usernames
+                    Show names of users
                   </Label>
                   <Switch
                     id="show-usernames"
@@ -173,7 +173,7 @@ export default function Component({
                     htmlFor="show-dirnames"
                     className="text-xs text-gray-300"
                   >
-                    Show dirnames
+                    Show directory names
                   </Label>
                   <Switch
                     id="show-dirnames"
@@ -181,6 +181,84 @@ export default function Component({
                     onCheckedChange={updateSettings("show_dirnames")}
                     disabled={isGenerating || isLoading}
                     className="bg-white/20 data-[state=checked]:bg-blurple data-[state=unchecked]:bg-gray-800"
+                  />
+                </div>
+                <div className="py-1">
+                  <hr className="border-t border-white/10" />
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <Label
+                    htmlFor="dir-font-size"
+                    className="text-xs text-gray-300"
+                  >
+                    Directory name font size
+                  </Label>
+                  <input
+                    type="number"
+                    id="dir-font-size"
+                    value={settings.dir_font_size}
+                    onChange={(e) =>
+                      updateSettings("dir_font_size")(Number(e.target.value))
+                    }
+                    min="1"
+                    max="20"
+                    disabled={isGenerating || isLoading}
+                    className={`w-16 appearance-none rounded-lg border-[1.5px] border-white/10 bg-transparent text-sm px-2 py-1 ${
+                      isGenerating || isLoading
+                        ? "cursor-not-allowed opacity-50"
+                        : ""
+                    }`}
+                    style={{ appearance: "textfield" }}
+                  />
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <Label
+                    htmlFor="file-font-size"
+                    className="text-xs text-gray-300"
+                  >
+                    File name font size
+                  </Label>
+                  <input
+                    type="number"
+                    id="file-font-size"
+                    value={settings.file_font_size}
+                    onChange={(e) =>
+                      updateSettings("file_font_size")(Number(e.target.value))
+                    }
+                    min="1"
+                    max="20"
+                    disabled={isGenerating || isLoading}
+                    className={`w-16 appearance-none rounded-lg border-[1.5px] border-white/10 bg-transparent text-sm px-2 py-1 ${
+                      isGenerating || isLoading
+                        ? "cursor-not-allowed opacity-50"
+                        : ""
+                    }`}
+                    style={{ appearance: "textfield" }}
+                  />
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <Label
+                    htmlFor="user-font-size"
+                    className="text-xs text-gray-300"
+                  >
+                    User name font size
+                  </Label>
+                  <input
+                    type="number"
+                    id="user-font-size"
+                    value={settings.user_font_size}
+                    onChange={(e) =>
+                      updateSettings("user_font_size")(Number(e.target.value))
+                    }
+                    min="1"
+                    max="20"
+                    disabled={isGenerating || isLoading}
+                    className={`w-16 appearance-none rounded-lg border-[1.5px] border-white/10 bg-transparent text-sm px-2 py-1 ${
+                      isGenerating || isLoading
+                        ? "cursor-not-allowed opacity-50"
+                        : ""
+                    }`}
+                    style={{ appearance: "textfield" }}
                   />
                 </div>
               </div>
@@ -229,7 +307,7 @@ export default function Component({
               checked={isPrivate}
               onCheckedChange={setIsPrivate}
               disabled={isSubmitting || isGenerating}
-              className="bg-white/10 data-[state=checked]:bg-blurple data-[state=unchecked]:bg-gray-800"
+              className="bg-white/50 data-[state=checked]:bg-blurple data-[state=unchecked]:bg-gray-800"
             />
             <Label
               htmlFor="private-mode"
