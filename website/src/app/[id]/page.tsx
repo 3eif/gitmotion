@@ -192,10 +192,8 @@ export default function Page() {
       const data = await response.json();
       console.log("Received job ID:", data.job_id);
 
-      // Update the URL with the new job ID
       router.push(`/${data.job_id}`);
 
-      // Reset states for the new job
       setRepoUrl(githubUrl);
       setLastValidJobStatus(null);
       setIsJobCompleted(false);
@@ -204,7 +202,6 @@ export default function Page() {
         setSettings(newSettings);
       }
 
-      // Trigger a new data fetch for the new job ID
       mutate();
     } catch (error) {
       console.error("Failed to start Gource generation:", error);

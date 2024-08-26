@@ -3,11 +3,13 @@ const VideoItem = ({
   poster,
   title,
   repoUrl,
+  commits,
 }: {
   src: string;
   poster: string;
   title: string;
   repoUrl: string;
+  commits: string;
 }) => (
   <div className="flex flex-col">
     <div className="rounded-2xl border-[1.5px] border-white/10 bg-black overflow-hidden">
@@ -24,15 +26,15 @@ const VideoItem = ({
       </video>
     </div>
     <div className="mt-3 flex justify-between items-center">
-      <h3 className="font-medium">{title}</h3>
       <a
         href={repoUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-blue-400 hover:text-blue-300 transition-colors"
+        className="font-medium text-transparent bg-clip-text bg-gradient-to-t from-blue-400 to-blue-600 hover:from-blue-300 hover:to-blue-500 transition-all duration-300"
       >
-        View Repo
+        {title}
       </a>
+      <span className="text-sm text-gray-400">{commits} commits</span>
     </div>
   </div>
 );
@@ -41,14 +43,16 @@ const videos = [
   {
     src: "/gource.mp4",
     poster: "/video-placeholder.jpg",
-    title: "React Repository",
+    title: "facebook/react",
     repoUrl: "https://github.com/facebook/react",
+    commits: "19,000+",
   },
   {
     src: "/gource.mp4",
     poster: "/video-placeholder.jpg",
-    title: "Vue.js Project",
-    repoUrl: "https://github.com/vuejs/vue",
+    title: "apple/swift",
+    repoUrl: "https://github.com/apple/swift",
+    commits: "170,000+",
   },
 ];
 

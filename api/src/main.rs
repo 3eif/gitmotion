@@ -99,7 +99,6 @@ fn decrypt_token(encrypted_token: &str, secret_key: &str) -> Result<String, Gour
     let iv = hex::decode(parts[0]).map_err(|_| GourceError::DecryptionFailed)?;
     let ciphertext = hex::decode(parts[1]).map_err(|_| GourceError::DecryptionFailed)?;
 
-    // Derive the key using the full SECRET_KEY
     let key = derive_key(secret_key);
 
     let mut decryptor = aes::ctr(aes::KeySize::KeySize256, &key, &iv);
@@ -114,7 +113,6 @@ fn decrypt_token(encrypted_token: &str, secret_key: &str) -> Result<String, Gour
     String::from_utf8(buffer).map_err(|_| GourceError::DecryptionFailed)
 }
 
-// Updated logging function that can handle both cases
 fn log_message(level: log::Level, message: &str, job_id: Option<&str>) {
     let target = job_id.map_or("gitmotion_api".to_string(), |id| format!("job-{}", id));
     match level {
@@ -260,11 +258,6 @@ async fn process_gource(
             }
         }
     } else {
-        log_message(
-            log::Level::Info,
-            "No access token provided",
-            Some(&job_id_clone),
-        );
         None
     };
     log_message(
@@ -300,6 +293,7 @@ async fn process_gource(
 
     // Use tokio::task::spawn_blocking for CPU-intensive tasks
     let job_id_for_closure = job_id_clone.clone();
+    let repo_url_for_closure = repo_url.clone();
     let _gource_result = tokio::task::spawn_blocking(move || {
         let result = generate_gource_visualization(
             temp_dir.path(),
@@ -308,6 +302,7 @@ async fn process_gource(
             &output_file,
             &settings,
             Some(&job_id_for_closure),
+            Some(&repo_url_for_closure), 
         );
 
         // Explicitly close the temporary directory
@@ -448,7 +443,6 @@ fn clone_repository(
 
     let mut url = Url::parse(repo_url).map_err(|_| GourceError::InvalidUrl)?;
 
-    // If a token is provided, include it in the URL
     if let Some(token) = github_token {
         url.set_username("oauth2")
             .map_err(|_| GourceError::InvalidUrl)?;
@@ -580,7 +574,10 @@ fn generate_gource_visualization(
     output_file: &Path,
     settings: &Option<GourceSettings>,
     job_id: Option<&str>,
+    repo_url: Option<&str>,
 ) -> Result<(), GourceError> {
+    let title = generate_repo_title(repo_url.unwrap_or(""));
+
     let mut gource_command = format!(
         "xvfb-run -a gource {} -1920x1200 \
         --seconds-per-day {} \
@@ -592,12 +589,14 @@ fn generate_gource_visualization(
         --user-scale 0.75 \
         --elasticity 0.01 \
         --background-colour 000000 \
+        --title \"{}\" \
         --dir-font-size {} \
         --file-font-size {} \
         --user-font-size {} \
         --stop-at-end",
         temp_dir.to_str().unwrap(),
         seconds_per_day,
+        title,
         settings.as_ref().map_or(11, |s| s.dir_font_size),
         settings.as_ref().map_or(10, |s| s.file_font_size),
         settings.as_ref().map_or(12, |s| s.user_font_size)
@@ -657,6 +656,22 @@ fn generate_gource_visualization(
     }
 
     Ok(())
+}
+
+fn generate_repo_title(repo_url: &str) -> String {
+    let url = Url::parse(repo_url).unwrap_or_else(|_| Url::parse("https://example.com").unwrap());
+
+    let segments: Vec<&str> = url.path_segments().map(|c| c.collect()).unwrap_or_default();
+
+    if segments.len() >= 2 {
+        format!(
+            "{}/{} ⋅ gitmotion.app",
+            segments[segments.len() - 2],
+            segments[segments.len() - 1]
+        )
+    } else {
+        "Repository Visualization ⋅ gitmotion.app".to_string()
+    }
 }
 
 fn check_dependencies() -> Result<(), String> {

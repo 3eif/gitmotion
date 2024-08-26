@@ -297,7 +297,7 @@ export default function Component({
               type="password"
               value={accessKey}
               onChange={(e) => setAccessKey(e.target.value)}
-              placeholder="Private Access Key"
+              placeholder="Personal Access Token"
               className={`w-full appearance-none rounded-lg border-[1.5px] border-white/10 bg-transparent py-2 px-3 text-white placeholder-white/20 outline-none transition-all hover:border-white/20 focus:border-white/30 ${
                 !isPrivate ? "opacity-30" : ""
               }`}
@@ -338,12 +338,13 @@ export default function Component({
             }`}
           >
             <a
-              href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token"
+              href="https://github.com/settings/tokens/new"
               target="_blank"
               rel="noopener noreferrer"
               className="underline decoration-current hover:bg-clip-text hover:bg-gradient-to-b from-blue-400 to-blue-900 hover:text-transparent"
             >
-              Learn how to create a personal access token.
+              To obtain a personal access token, click here and select the
+              &quot;repo&quot; scope.
             </a>
           </p>
         </div>
