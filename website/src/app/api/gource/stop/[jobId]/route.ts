@@ -12,11 +12,12 @@ export async function GET(
 
   try {
     const response = await fetch(
-      `${process.env.API_URL}/gource/stop/${jobId}`,
+      `${process.env.API_URL}/stop/${jobId}`,
       {
         method: "GET",
       }
     );
+    console.log("STOPPING JOB", response);
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -25,7 +26,7 @@ export async function GET(
         { status: response.status }
       );
     }
-
+    console.log("Response:", response);
     const result = await response.json();
     return NextResponse.json(result);
   } catch (error) {
