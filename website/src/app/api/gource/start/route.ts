@@ -74,7 +74,7 @@ async function sendRequestToRustServer(
   }
 
   console.log("Sending request to Rust server:", body);
-
+  console.log(`${process.env.API_URL}/start-gource`);
   const response = await fetch(`${process.env.API_URL}/start-gource`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

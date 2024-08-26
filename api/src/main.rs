@@ -235,7 +235,9 @@ async fn process_gource(
             "Access token provided, attempting decryption",
             Some(&job_id_clone),
         );
-        let secret_key = std::env::var("SECRET_KEY").expect("SECRET_KEY must be set");
+        let secret_key = dotenv::var("SECRET_KEY")
+            .or_else(|_| std::env::var("SECRET_KEY"))
+            .expect("SECRET_KEY must be set in .env file or environment");
         log_message(
             log::Level::Info,
             &format!("SECRET_KEY found, length: {}", secret_key.len()),
@@ -822,7 +824,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/health").route(web::get().to(health_check)))
             .service(web::resource("/stop/{job_id}").route(web::get().to(stop_job)))
     })
-    .bind(format!("0.0.0.0:{}", api_port))?
+    .bind(format!("0.0.0.0:{}", 8081))?
     .run()
     .await
 }
