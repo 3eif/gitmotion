@@ -7,6 +7,7 @@ use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use crypto::symmetriccipher::Decryptor;
 use crypto::{aes, buffer};
+use dotenv::dotenv;
 use env_logger::Builder;
 use hex;
 use log::{error, info, LevelFilter};
@@ -744,6 +745,8 @@ async fn clear_gource_videos() {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    dotenv().ok();
+
     // Custom logger configuration
     Builder::new()
         .format(|buf, record| {
@@ -784,7 +787,19 @@ async fn main() -> std::io::Result<()> {
         }
     });
 
-    let api_port = std::env::var("API_PORT").unwrap_or("8080".to_string());
+    let api_port = env::var("API_PORT").unwrap_or_else(|_| {
+        log_message(
+            log::Level::Info,
+            "API_PORT not set, using default port 8080",
+            None,
+        );
+        "8080".to_string()
+    });
+    log_message(
+        log::Level::Info,
+        &format!("API port set to: {}", api_port),
+        None,
+    );
 
     log_message(
         log::Level::Info,
@@ -807,7 +822,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/health").route(web::get().to(health_check)))
             .service(web::resource("/stop/{job_id}").route(web::get().to(stop_job)))
     })
-    .bind("0.0.0.0:8081")?
+    .bind(format!("0.0.0.0:{}", api_port))?
     .run()
     .await
 }

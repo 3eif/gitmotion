@@ -6,6 +6,8 @@ WORKDIR /usr/src/gitmotion
 COPY api/Cargo.toml api/Cargo.lock ./api/
 # Copy the source code
 COPY api/src ./api/src
+# Copy the .env file
+COPY .env ./api/
 # Build the application
 WORKDIR /usr/src/gitmotion/api
 RUN cargo build --release
@@ -26,6 +28,9 @@ RUN apt-get update && \
 
 # Copy the built executable from the builder stage
 COPY --from=builder /usr/src/gitmotion/api/target/release/gitmotion-api /usr/local/bin/gitmotion-api
+
+# Copy the .env file from the builder stage
+COPY --from=builder /usr/src/gitmotion/api/.env /usr/local/bin/.env
 
 # Create a directory for Gource videos
 RUN mkdir -p /gource_videos && chmod 777 /gource_videos
