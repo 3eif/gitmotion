@@ -357,7 +357,7 @@ async fn process_gource(
 
 async fn stop_job(job_id: web::Path<String>, job_store: web::Data<JobStore>) -> impl Responder {
     let mut store = job_store.lock().await;
-    match store.get_mut(job_id.as_str()) {
+    let response = match store.get_mut(job_id.as_str()) {
         Some(status) => {
             if status.step == ProgressStep::GeneratingVisualization
                 && status.video_url.is_none()
@@ -370,18 +370,20 @@ async fn stop_job(job_id: web::Path<String>, job_store: web::Data<JobStore>) -> 
                     &format!("Job {} stopped by user", job_id),
                     Some(job_id.as_str()),
                 );
-                HttpResponse::Ok().json(serde_json::json!({
-                    "message": "Job stopped successfully and temporary files cleaned up"
-                }))
+                serde_json::json!({
+                    "message": "Job stopped successfully and temporary files cleaned up",
+                    "status": "stopped"
+                })
             } else {
                 log_message(
                     log::Level::Info,
                     &format!("Cannot stop job {}: already completed or errored", job_id),
                     Some(job_id.as_str()),
                 );
-                HttpResponse::BadRequest().json(serde_json::json!({
-                    "error": "Cannot stop job: already completed or errored"
-                }))
+                serde_json::json!({
+                    "error": "Cannot stop job: already completed or errored",
+                    "status": "unchanged"
+                })
             }
         }
         None => {
@@ -390,11 +392,14 @@ async fn stop_job(job_id: web::Path<String>, job_store: web::Data<JobStore>) -> 
                 &format!("Job not found: {}", job_id),
                 Some(job_id.as_str()),
             );
-            HttpResponse::NotFound().json(serde_json::json!({
-                "error": "Job not found"
-            }))
+            serde_json::json!({
+                "error": "Job not found",
+                "status": "not_found"
+            })
         }
-    }
+    };
+
+    HttpResponse::Ok().json(response)
 }
 
 async fn get_job_status(
