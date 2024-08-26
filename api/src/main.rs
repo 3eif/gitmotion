@@ -191,14 +191,19 @@ async fn process_gource(
     job_id: String,
     job_store: web::Data<JobStore>,
 ) -> Result<(), GourceError> {
-    log_message(log::Level::Info, "Starting process_gource", Some(&job_id));
+    let job_id_clone = job_id.clone();
+    log_message(
+        log::Level::Info,
+        "Starting process_gource",
+        Some(&job_id_clone),
+    );
     let start_time = Instant::now();
 
     update_job_status(&job_store, &job_id, ProgressStep::InitializingProject).await;
     log_message(
         log::Level::Info,
         "Updated job status to InitializingProject",
-        Some(&job_id),
+        Some(&job_id_clone),
     );
 
     let url = Url::parse(&repo_url).map_err(|_| GourceError::InvalidUrl)?;
@@ -208,40 +213,40 @@ async fn process_gource(
     log_message(
         log::Level::Info,
         &format!("Validated repository URL: {}", repo_url),
-        Some(&job_id),
+        Some(&job_id_clone),
     );
 
     let temp_dir = tempfile::TempDir::new().map_err(|_| GourceError::TempDirCreationFailed)?;
     log_message(
         log::Level::Info,
         "Created temporary directory",
-        Some(&job_id),
+        Some(&job_id_clone),
     );
 
     let clone_start = Instant::now();
     log_message(
         log::Level::Info,
         "Attempting to decrypt token",
-        Some(&job_id),
+        Some(&job_id_clone),
     );
     let decrypted_token = if let Some(encrypted_token) = access_token {
         log_message(
             log::Level::Info,
             "Access token provided, attempting decryption",
-            Some(&job_id),
+            Some(&job_id_clone),
         );
         let secret_key = std::env::var("SECRET_KEY").expect("SECRET_KEY must be set");
         log_message(
             log::Level::Info,
             &format!("SECRET_KEY found, length: {}", secret_key.len()),
-            Some(&job_id),
+            Some(&job_id_clone),
         );
         match decrypt_token(&encrypted_token, &secret_key) {
             Ok(token) => {
                 log_message(
                     log::Level::Info,
                     "Token decrypted successfully",
-                    Some(&job_id),
+                    Some(&job_id_clone),
                 );
                 Some(token)
             }
@@ -249,40 +254,44 @@ async fn process_gource(
                 log_message(
                     log::Level::Error,
                     &format!("Failed to decrypt token: {:?}", e),
-                    Some(&job_id),
+                    Some(&job_id_clone),
                 );
                 return Err(e);
             }
         }
     } else {
-        log_message(log::Level::Info, "No access token provided", Some(&job_id));
+        log_message(
+            log::Level::Info,
+            "No access token provided",
+            Some(&job_id_clone),
+        );
         None
     };
     log_message(
         log::Level::Info,
         "Attempting to clone repository",
-        Some(&job_id),
+        Some(&job_id_clone),
     );
     clone_repository(&repo_url, temp_dir.path(), decrypted_token.as_deref())?;
     let clone_duration = clone_start.elapsed();
     log_message(
         log::Level::Info,
         &format!("Repository cloning took {:?}", clone_duration),
-        Some(&job_id),
+        Some(&job_id_clone),
     );
 
     update_job_status(&job_store, &job_id, ProgressStep::AnalyzingHistory).await;
     let count_start = Instant::now();
     let (days_with_commits, total_commits) =
-        count_days_and_commits(temp_dir.path(), Some(&job_id))?;
+        count_days_and_commits(temp_dir.path(), Some(&job_id_clone))?;
     let count_duration = count_start.elapsed();
     log_message(
         log::Level::Info,
         &format!("Counting days with commits took {:?}", count_duration),
-        Some(&job_id),
+        Some(&job_id_clone),
     );
 
-    let seconds_per_day = calculate_seconds_per_day(days_with_commits, Some(&job_id));
+    let seconds_per_day = calculate_seconds_per_day(days_with_commits, Some(&job_id_clone));
     let hide_filenames = total_commits > 500;
 
     update_job_status(&job_store, &job_id, ProgressStep::GeneratingVisualization).await;
@@ -290,6 +299,7 @@ async fn process_gource(
     let gource_start = Instant::now();
 
     // Use tokio::task::spawn_blocking for CPU-intensive tasks
+    let job_id_for_closure = job_id_clone.clone();
     let _gource_result = tokio::task::spawn_blocking(move || {
         let result = generate_gource_visualization(
             temp_dir.path(),
@@ -297,7 +307,7 @@ async fn process_gource(
             hide_filenames,
             &output_file,
             &settings,
-            Some(&job_id),
+            Some(&job_id_for_closure),
         );
 
         // Explicitly close the temporary directory
@@ -305,13 +315,13 @@ async fn process_gource(
             log_message(
                 log::Level::Error,
                 &format!("Failed to remove temporary directory: {:?}", e),
-                Some(&job_id),
+                Some(&job_id_for_closure),
             );
         } else {
             log_message(
                 log::Level::Info,
                 "Temporary directory removed successfully",
-                Some(&job_id),
+                Some(&job_id_for_closure),
             );
         }
 
@@ -324,14 +334,14 @@ async fn process_gource(
     log_message(
         log::Level::Info,
         &format!("Gource visualization generation took {:?}", gource_duration),
-        None,
+        Some(&job_id_clone),
     );
 
     let total_duration = start_time.elapsed();
     log_message(
         log::Level::Info,
         &format!("Total process took {:?}", total_duration),
-        Some(&job_id),
+        Some(&job_id_clone),
     );
 
     update_job_status(&job_store, &job_id, ProgressStep::GeneratingVisualization).await;
