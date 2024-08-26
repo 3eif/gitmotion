@@ -8,7 +8,7 @@ import Footer from "@/components/footer";
 import { ChevronDownIcon } from "@heroicons/react/16/solid";
 import VisualizationsCount from "@/components/visualizations-count";
 
-export const fontSans = FontSans({
+const fontSans = FontSans({
   subsets: ["latin"],
   variable: "--font-sans",
 });

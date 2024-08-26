@@ -7,11 +7,13 @@ use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use crypto::symmetriccipher::Decryptor;
 use crypto::{aes, buffer};
+use dotenv::dotenv;
 use env_logger::Builder;
 use hex;
 use log::{error, info, LevelFilter};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::env;
 use std::fs::{self};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -589,7 +591,7 @@ fn generate_gource_visualization(
         --user-scale 0.75 \
         --elasticity 0.01 \
         --background-colour 000000 \
-        --font-size 14 \
+        --font-size 18 \
         --title \"{}\" \
         --dir-font-size {} \
         --file-font-size {} \
@@ -743,6 +745,8 @@ async fn clear_gource_videos() {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    dotenv().ok();
+
     // Custom logger configuration
     Builder::new()
         .format(|buf, record| {
@@ -783,9 +787,11 @@ async fn main() -> std::io::Result<()> {
         }
     });
 
+    let api_port = env::var("API_PORT").unwrap_or("8080".to_string());
+
     log_message(
         log::Level::Info,
-        "Starting server at http://0.0.0.0:8081",
+        &format!("Starting server at http://0.0.0.0:{}", api_port),
         None,
     );
     HttpServer::new(move || {
