@@ -7,7 +7,6 @@ use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use crypto::symmetriccipher::Decryptor;
 use crypto::{aes, buffer};
-use dotenv::dotenv;
 use env_logger::Builder;
 use hex;
 use log::{error, info, LevelFilter};
@@ -745,8 +744,6 @@ async fn clear_gource_videos() {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    dotenv().ok();
-
     // Custom logger configuration
     Builder::new()
         .format(|buf, record| {
@@ -787,7 +784,7 @@ async fn main() -> std::io::Result<()> {
         }
     });
 
-    let api_port = env::var("API_PORT").unwrap_or("8080".to_string());
+    let api_port = std::env::var("API_PORT").unwrap_or("8080".to_string());
 
     log_message(
         log::Level::Info,
