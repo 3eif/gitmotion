@@ -82,7 +82,7 @@ export default function Page() {
     show_file_extension_key: false,
     show_usernames: true,
     show_dirnames: true,
-    dir_font_size: 10,
+    dir_font_size: 11,
     file_font_size: 10,
     user_font_size: 12,
   });
@@ -253,7 +253,19 @@ export default function Page() {
           <div className="w-full max-w-xl mx-auto pt-2 pb-3">
             <GourceInput
               onSubmit={onSubmit}
-              onCancel={async () => {}}
+              onCancel={async () => {
+                try {
+                  const response = await fetch(`/api/gource/stop/${jobId}`, {
+                    method: "GET",
+                  });
+                  if (!response.ok) {
+                    throw new Error("Failed to cancel job");
+                  }
+                  setIsGenerationInProgress(false);
+                } catch (error) {
+                  console.error("Error cancelling job:", error);
+                }
+              }}
               isLoading={isLoading}
               isGenerating={isGenerationInProgress}
               initialUrl={repoUrl}

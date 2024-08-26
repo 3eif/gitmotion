@@ -51,7 +51,7 @@ export default function Component({
       show_file_extension_key: false,
       show_usernames: true,
       show_dirnames: true,
-      dir_font_size: 10,
+      dir_font_size: 11,
       file_font_size: 10,
       user_font_size: 12,
     }
@@ -326,7 +326,8 @@ export default function Component({
             }`}
           >
             Only private GitHub repos are supported. The token is encrypted on
-            its way to the server.
+            its way to the server. Repository contents are deleted after the
+            generation is complete.
           </p>
           <p
             className={`text-left mt-1 text-xs text-gray-600 ${

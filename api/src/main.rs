@@ -9,7 +9,7 @@ use crypto::symmetriccipher::Decryptor;
 use crypto::{aes, buffer};
 use env_logger::Builder;
 use hex;
-use log::{debug, error, info, trace, warn, LevelFilter};
+use log::{error, info, LevelFilter};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::{self};
@@ -17,7 +17,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime};
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tokio::time::interval;
@@ -557,7 +557,7 @@ fn calculate_seconds_per_day(days_with_commits: i32, job_id: Option<&str>) -> f6
 
     let seconds_per_day = target_duration / days_with_commits as f64;
 
-    let clamped_seconds = seconds_per_day.clamp(0.00001, 1.5);
+    let clamped_seconds = seconds_per_day.clamp(0.00001, 1.0);
 
     log_message(
         log::Level::Info,
@@ -596,7 +596,7 @@ fn generate_gource_visualization(
         --stop-at-end",
         temp_dir.to_str().unwrap(),
         seconds_per_day,
-        settings.as_ref().map_or(10, |s| s.dir_font_size),
+        settings.as_ref().map_or(11, |s| s.dir_font_size),
         settings.as_ref().map_or(10, |s| s.file_font_size),
         settings.as_ref().map_or(12, |s| s.user_font_size)
     );
@@ -784,7 +784,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/job-status/{job_id}").route(web::get().to(get_job_status)))
             .service(web::resource("/video/{job_id}").route(web::get().to(serve_video)))
             .service(web::resource("/health").route(web::get().to(health_check)))
-            .service(web::resource("/stop/{job_id}").route(web::post().to(stop_job)))
+            .service(web::resource("/stop/{job_id}").route(web::get().to(stop_job)))
     })
     .bind("0.0.0.0:8081")?
     .run()
