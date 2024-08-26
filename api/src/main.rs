@@ -302,7 +302,7 @@ async fn process_gource(
             &output_file,
             &settings,
             Some(&job_id_for_closure),
-            Some(&repo_url_for_closure), 
+            Some(&repo_url_for_closure),
         );
 
         // Explicitly close the temporary directory
@@ -589,6 +589,7 @@ fn generate_gource_visualization(
         --user-scale 0.75 \
         --elasticity 0.01 \
         --background-colour 000000 \
+        --font-size 14 \
         --title \"{}\" \
         --dir-font-size {} \
         --file-font-size {} \
