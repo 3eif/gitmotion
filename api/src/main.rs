@@ -557,7 +557,7 @@ fn calculate_seconds_per_day(days_with_commits: i32, job_id: Option<&str>) -> f6
 
     let seconds_per_day = target_duration / days_with_commits as f64;
 
-    let clamped_seconds = seconds_per_day.clamp(0.00001, 2.0);
+    let clamped_seconds = seconds_per_day.clamp(0.00001, 1.5);
 
     log_message(
         log::Level::Info,
