@@ -2,10 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 @layer base {
   :root {
     --background: 222.2 84% 4.9%;
@@ -53,7 +49,7 @@ body {
 
 @layer base {
   body {
-    @apply bg-black bg-[radial-gradient(ellipse_80%_40%_at_50%_-20%,rgba(77,97,255,0.5),rgba(255,255,255,0))] text-white !important;
+    @apply bg-black bg-[radial-gradient(ellipse_80%_45%_at_50%_-20%,rgba(77,97,255,0.5),rgba(255,255,255,0))] text-white !important;
   }
 }
 

@@ -62,7 +62,7 @@ export default function ExampleGenerations() {
       <h2 className="text-2xl font-semibold text-left mt-10">
         Example Generations
       </h2>
-      <div className="grid grid-cols-2 gap-8 w-full">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
         {videos.map((video, index) => (
           <VideoItem key={index} {...video} />
         ))}

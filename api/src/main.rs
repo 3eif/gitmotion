@@ -595,7 +595,7 @@ fn generate_gource_visualization(
         --user-scale 0.75 \
         --elasticity 0.01 \
         --background-colour 000000 \
-        --font-size 30 \
+        --font-size 20 \
         --title \"{}\" \
         --dir-font-size {} \
         --file-font-size {} \

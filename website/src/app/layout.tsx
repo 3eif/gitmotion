@@ -83,7 +83,7 @@ export default function RootLayout({
           fontSans.variable
         )}
       >
-        <div className="flex min-h-screen flex-col items-center justify-center gap-7 pt-6 pb-20">
+        <div className="flex min-h-screen flex-col items-center justify-center gap-7 pt-20 pb-20 mx-auto">
           <div className="flex flex-col items-center justify-center text-center mx-auto w-full max-w-7xl">
             <div className="w-full space-y-5 duration-1000 ease-in-out animate-in fade-in slide-in-from-top-5">
               <VisualizationsCount />

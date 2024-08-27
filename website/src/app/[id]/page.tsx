@@ -6,7 +6,7 @@ import GourceInput, { GourceSettings } from "@/components/gource-input";
 import { ProgressStep } from "@/components/gource-progress";
 import GourceVideo from "@/components/gource-video";
 import { ChevronDownIcon } from "@heroicons/react/16/solid";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import useSWR from "swr";
 import { Icons } from "@/components/ui/icons";
 
@@ -258,13 +258,29 @@ export default function Page() {
 
   const shouldShowArrow = isArrowVisible && !lastValidJobStatus?.video_url;
 
+  const scrollToVideo = useCallback(() => {
+    if (videoRef.current) {
+      videoRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (jobStatus && jobStatus.video_url) {
+      console.log("Video URL available, attempting to scroll");
+      // Add a small delay to ensure the video component has rendered
+      setTimeout(scrollToVideo, 100);
+      setIsJobCompleted(true);
+      setIsArrowVisible(false);
+    }
+  }, [jobStatus, scrollToVideo]);
+
   return (
     <>
       <div className="">
         {isInitialLoading ? (
           <LoadingIndicator />
         ) : (
-          <div className="w-full max-w-xl mx-auto pt-2 pb-3">
+          <div className="w-full mx-auto pt-2 pb-5">
             <GourceInput
               onSubmit={onSubmit}
               onCancel={async () => {
