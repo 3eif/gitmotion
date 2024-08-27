@@ -58,10 +58,6 @@ export default function Component({
   );
 
   useEffect(() => {
-    console.log("Settings updated:", settings);
-  }, [settings]);
-
-  useEffect(() => {
     if (initialSettings) {
       setSettings(initialSettings);
     }

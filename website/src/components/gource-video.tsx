@@ -20,10 +20,11 @@ export default function GourceVideo({
   error,
   videoRef,
 }: GourceVideoProps) {
+  const videoUrl = jobId ? `/api/gource/video/${jobId}` : null;
+
   const handleDownload = () => {
-    if (jobId) {
-      const downloadUrl = `http://localhost:3000/api/gource/video/${jobId}`;
-      window.open(downloadUrl, "_blank");
+    if (videoUrl) {
+      window.open(videoUrl, "_blank");
     }
   };
 
@@ -36,7 +37,7 @@ export default function GourceVideo({
               <GourceProgress currentStep={jobStatus.step} />
             </div>
           )}
-          {jobStatus && jobStatus.error && (
+          {jobStatus.error && (
             <div className="flex justify-center mt-2">
               <p className="text-red-500 text-center">{jobStatus.error}</p>
             </div>
@@ -64,7 +65,7 @@ export default function GourceVideo({
                   <video
                     className="w-full h-auto"
                     controls
-                    src={`http://localhost:3000/api/gource/video/${jobId}`}
+                    src={videoUrl || undefined}
                   />
                 </div>
               </div>

@@ -6,7 +6,7 @@ import GourceInput, { GourceSettings } from "@/components/gource-input";
 import { ProgressStep } from "@/components/gource-progress";
 import GourceVideo from "@/components/gource-video";
 import { ChevronDownIcon } from "@heroicons/react/16/solid";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import useSWR from "swr";
 import { Icons } from "@/components/ui/icons";
 
@@ -66,6 +66,31 @@ const LoadingIndicator = () => (
     <Icons.spinner className="h-8 w-8 animate-spin" />
   </div>
 );
+
+function smoothScrollTo(element: HTMLElement, duration: number) {
+  const targetPosition =
+    element.getBoundingClientRect().top + window.pageYOffset;
+  const startPosition = window.pageYOffset;
+  const distance = targetPosition - startPosition;
+  let startTime: number | null = null;
+
+  function animation(currentTime: number) {
+    if (startTime === null) startTime = currentTime;
+    const timeElapsed = currentTime - startTime;
+    const run = ease(timeElapsed, startPosition, distance, duration);
+    window.scrollTo(0, run);
+    if (timeElapsed < duration) requestAnimationFrame(animation);
+  }
+
+  function ease(t: number, b: number, c: number, d: number) {
+    t /= d / 2;
+    if (t < 1) return (c / 2) * t * t + b;
+    t--;
+    return (-c / 2) * (t * (t - 2) - 1) + b;
+  }
+
+  requestAnimationFrame(animation);
+}
 
 export default function Page() {
   const params = useParams();
@@ -130,16 +155,12 @@ export default function Page() {
   );
 
   useEffect(() => {
-    if (jobStatus) {
-      console.log("Job Status:", jobStatus);
-      console.log("isGenerationInProgress:", isGenerationInProgress);
-      if (jobStatus.video_url && videoRef.current) {
-        smoothScrollTo(videoRef.current, 850);
-        setIsJobCompleted(true);
-        setIsArrowVisible(false);
-      }
+    if (jobStatus?.video_url && videoRef.current) {
+      smoothScrollTo(videoRef.current, 850);
+      setIsJobCompleted(true);
+      setIsArrowVisible(false);
     }
-  }, [jobStatus, isGenerationInProgress]);
+  }, [jobStatus?.video_url]);
 
   useEffect(() => {
     if (jobStatus) {
@@ -168,11 +189,11 @@ export default function Page() {
   useEffect(() => {
     let title = "Gitmotion";
     if (isInitialLoading) {
-      title = "Gitmotion | Loading...";
+      title = "Loading | Gitmotion  ";
     } else if (isGenerationInProgress) {
-      title = "Gitmotion | Generating...";
+      title = "Generating | Gitmotion";
     } else if (isJobCompleted) {
-      title = "Gitmotion | Finished";
+      title = "Finished | Gitmotion";
     }
     document.title = title;
   }, [isInitialLoading, isGenerationInProgress, isJobCompleted]);
@@ -258,29 +279,13 @@ export default function Page() {
 
   const shouldShowArrow = isArrowVisible && !lastValidJobStatus?.video_url;
 
-  const scrollToVideo = useCallback(() => {
-    if (videoRef.current) {
-      videoRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, []);
-
-  useEffect(() => {
-    if (jobStatus && jobStatus.video_url) {
-      console.log("Video URL available, attempting to scroll");
-      // Add a small delay to ensure the video component has rendered
-      setTimeout(scrollToVideo, 100);
-      setIsJobCompleted(true);
-      setIsArrowVisible(false);
-    }
-  }, [jobStatus, scrollToVideo]);
-
   return (
     <>
       <div className="">
         {isInitialLoading ? (
           <LoadingIndicator />
         ) : (
-          <div className="w-full mx-auto pt-2 pb-5">
+          <div className="w-full max-w-xl mx-auto pt-2 pb-5">
             <GourceInput
               onSubmit={onSubmit}
               onCancel={async () => {
@@ -303,12 +308,14 @@ export default function Page() {
             />
           </div>
         )}
-        <GourceVideo
-          jobStatus={lastValidJobStatus}
-          jobId={jobId}
-          error={error}
-          videoRef={videoRef}
-        />
+        <div ref={videoRef}>
+          <GourceVideo
+            jobStatus={lastValidJobStatus}
+            jobId={jobId}
+            error={error}
+            videoRef={videoRef}
+          />
+        </div>
       </div>
       <ArrowButton
         onClick={scrollToExampleGenerations}
