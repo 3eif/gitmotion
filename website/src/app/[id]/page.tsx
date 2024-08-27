@@ -165,6 +165,18 @@ export default function Page() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [hasScrolled]);
 
+  useEffect(() => {
+    let title = "Gitmotion";
+    if (isInitialLoading) {
+      title = "Gitmotion | Loading...";
+    } else if (isGenerationInProgress) {
+      title = "Gitmotion | Generating...";
+    } else if (isJobCompleted) {
+      title = "Gitmotion | Finished";
+    }
+    document.title = title;
+  }, [isInitialLoading, isGenerationInProgress, isJobCompleted]);
+
   async function onSubmit(
     githubUrl: string,
     accessToken?: string,

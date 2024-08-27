@@ -17,17 +17,17 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.URL ?? "http://localhost:3000/"),
   title: "Gitmotion",
   description:
-    "Generate beautiful visualizations of your Git history right in your browser.",
+    "Generate beautiful visualizations of your Git history right from your browser.",
   applicationName: "Gitmotion",
   openGraph: {
     title: "Gitmotion",
     description:
-      "Generate beautiful visualizations of your Git history right in your browser.",
+      "Generate beautiful visualizations of your Git history right from your browser.",
     url: "https://gitmotion.app",
     type: "website",
     images: [
       {
-        url: "/og.png",
+        url: "/og.svg",
         alt: "Gitmotion",
       },
     ],
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Gitmotion",
     description:
-      "Generate beautiful visualizations of your Git history right in your browser.",
+      "Generate beautiful visualizations of your Git history right from your browser.",
     images: [
       {
         url: "/og.png",

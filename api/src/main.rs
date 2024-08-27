@@ -72,7 +72,9 @@ enum GourceError {
     UnsupportedRepository,
     #[error("Failed to create temporary directory")]
     TempDirCreationFailed,
-    #[error("Failed to clone repository")]
+    #[error(
+        "Failed to clone repository. Your repository may be private and requires an access token."
+    )]
     CloneFailed,
     #[error("Failed to count commits")]
     CommitCountFailed,
@@ -593,7 +595,7 @@ fn generate_gource_visualization(
         --user-scale 0.75 \
         --elasticity 0.01 \
         --background-colour 000000 \
-        --font-size 18 \
+        --font-size 30 \
         --title \"{}\" \
         --dir-font-size {} \
         --file-font-size {} \
@@ -792,10 +794,10 @@ async fn main() -> std::io::Result<()> {
     let api_port = env::var("API_PORT").unwrap_or_else(|_| {
         log_message(
             log::Level::Info,
-            "API_PORT not set, using default port 8080",
+            "API_PORT not set, using default port 8081",
             None,
         );
-        "8080".to_string()
+        "8081".to_string()
     });
     log_message(
         log::Level::Info,
@@ -824,7 +826,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/health").route(web::get().to(health_check)))
             .service(web::resource("/stop/{job_id}").route(web::get().to(stop_job)))
     })
-    .bind(format!("0.0.0.0:{}", 8081))?
+    .bind(format!("0.0.0.0:{}", api_port))?
     .run()
     .await
 }
