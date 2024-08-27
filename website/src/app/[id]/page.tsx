@@ -1,7 +1,8 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import ExampleGenerations from "@/components/example-generations";
+import Footer from "@/components/footer";
 import GourceInput, { GourceSettings } from "@/components/gource-input";
 import { ProgressStep } from "@/components/gource-progress";
 import GourceVideo from "@/components/gource-video";
@@ -18,6 +19,12 @@ interface JobStatus {
   settings: GourceSettings;
 }
 
+const LoadingIndicator = () => (
+  <div className="flex h-full items-center justify-center">
+    <Icons.spinner className="h-8 w-8 animate-spin" />
+  </div>
+);
+
 const fetcher = async (url: string) => {
   const res = await fetch(url, {
     headers: {
@@ -26,10 +33,7 @@ const fetcher = async (url: string) => {
     },
   });
   if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(
-      errorData.message || "An error occurred while fetching the data."
-    );
+    throw new Error("An error occurred while fetching the data.");
   }
   const data = await res.json();
   if (typeof data.step === "string") {
@@ -61,49 +65,19 @@ const ArrowButton = ({
   </div>
 );
 
-const LoadingIndicator = () => (
-  <div className="flex h-full items-center justify-center">
-    <Icons.spinner className="h-8 w-8 animate-spin" />
-  </div>
-);
-
-function smoothScrollTo(element: HTMLElement, duration: number) {
-  const targetPosition =
-    element.getBoundingClientRect().top + window.pageYOffset;
-  const startPosition = window.pageYOffset;
-  const distance = targetPosition - startPosition;
-  let startTime: number | null = null;
-
-  function animation(currentTime: number) {
-    if (startTime === null) startTime = currentTime;
-    const timeElapsed = currentTime - startTime;
-    const run = ease(timeElapsed, startPosition, distance, duration);
-    window.scrollTo(0, run);
-    if (timeElapsed < duration) requestAnimationFrame(animation);
-  }
-
-  function ease(t: number, b: number, c: number, d: number) {
-    t /= d / 2;
-    if (t < 1) return (c / 2) * t * t + b;
-    t--;
-    return (-c / 2) * (t * (t - 2) - 1) + b;
-  }
-
-  requestAnimationFrame(animation);
-}
-
 export default function Page() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const jobId = params.id as string;
 
   const [repoUrl, setRepoUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isArrowVisible, setIsArrowVisible] = useState(true);
   const [hasScrolled, setHasScrolled] = useState(false);
   const [lastValidJobStatus, setLastValidJobStatus] =
     useState<JobStatus | null>(null);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isJobCompleted, setIsJobCompleted] = useState(false);
   const [shouldPoll, setShouldPoll] = useState(true);
   const [isGenerationInProgress, setIsGenerationInProgress] = useState(false);
@@ -138,7 +112,7 @@ export default function Page() {
           setSettings(data.settings);
           if (data.video_url || data.error) {
             setIsJobCompleted(true);
-            setShouldPoll(false);
+            //setShouldPoll(false);
             setIsGenerationInProgress(false);
           } else {
             setIsGenerationInProgress(true);
@@ -155,12 +129,16 @@ export default function Page() {
   );
 
   useEffect(() => {
-    if (jobStatus?.video_url && videoRef.current) {
-      smoothScrollTo(videoRef.current, 850);
-      setIsJobCompleted(true);
-      setIsArrowVisible(false);
+    if (jobStatus) {
+      console.log("Job Status:", jobStatus);
+      if (jobStatus.video_url && videoRef.current) {
+        smoothScrollTo(videoRef.current, 850);
+        setIsJobCompleted(true);
+        setIsArrowVisible(false);
+        setShouldPoll(false);
+      }
     }
-  }, [jobStatus?.video_url]);
+  }, [jobStatus]);
 
   useEffect(() => {
     if (jobStatus) {
@@ -174,6 +152,7 @@ export default function Page() {
   useEffect(() => {
     const handleScroll = () => {
       const scrollPosition = window.scrollY;
+
       if (scrollPosition > 100 && !hasScrolled) {
         setHasScrolled(true);
         setIsArrowVisible(false);
@@ -189,11 +168,11 @@ export default function Page() {
   useEffect(() => {
     let title = "Gitmotion";
     if (isInitialLoading) {
-      title = "Loading | Gitmotion  ";
+      title = "Gitmotion | Loading...";
     } else if (isGenerationInProgress) {
-      title = "Generating | Gitmotion";
+      title = "Gitmotion | Generating...";
     } else if (isJobCompleted) {
-      title = "Finished | Gitmotion";
+      title = "Gitmotion | Finished";
     }
     document.title = title;
   }, [isInitialLoading, isGenerationInProgress, isJobCompleted]);
@@ -277,6 +256,11 @@ export default function Page() {
     }
   };
 
+  const isGenerating =
+    lastValidJobStatus &&
+    !lastValidJobStatus.video_url &&
+    !lastValidJobStatus.error;
+
   const shouldShowArrow = isArrowVisible && !lastValidJobStatus?.video_url;
 
   return (
@@ -285,7 +269,7 @@ export default function Page() {
         {isInitialLoading ? (
           <LoadingIndicator />
         ) : (
-          <div className="w-full max-w-xl mx-auto pt-2 pb-5">
+          <div className="w-full mx-auto pt-2 pb-5">
             <GourceInput
               onSubmit={onSubmit}
               onCancel={async () => {
@@ -308,14 +292,12 @@ export default function Page() {
             />
           </div>
         )}
-        <div ref={videoRef}>
-          <GourceVideo
-            jobStatus={lastValidJobStatus}
-            jobId={jobId}
-            error={error}
-            videoRef={videoRef}
-          />
-        </div>
+        <GourceVideo
+          jobStatus={lastValidJobStatus}
+          jobId={jobId}
+          error={error}
+          videoRef={videoRef}
+        />
       </div>
       <ArrowButton
         onClick={scrollToExampleGenerations}
