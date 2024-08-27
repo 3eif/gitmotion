@@ -47,7 +47,7 @@ export default function GourceVideo({
               <div className="py-6 max-w-7xl p-8 mx-auto">
                 <div
                   ref={videoRef}
-                  className="rounded-2xl border-[1.5px] border-white/10 bg-black overflow-hidden relative"
+                  className="rounded-xl border-[1.5px] border-white/10 bg-black overflow-hidden relative"
                 >
                   <button
                     onClick={handleDownload}

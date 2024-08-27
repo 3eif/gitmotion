@@ -12,7 +12,7 @@ const VideoItem = ({
   commits: string;
 }) => (
   <div className="flex flex-col">
-    <div className="rounded-2xl border-[1.5px] border-white/10 bg-black overflow-hidden">
+    <div className="rounded-xl border-[1.5px] border-white/10 bg-black overflow-hidden">
       <video
         className="w-full h-auto"
         controls

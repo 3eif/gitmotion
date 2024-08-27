@@ -120,7 +120,9 @@ export default function Component({
               placeholder="https://github.com/username/repo"
               className={`w-full appearance-none rounded-lg border-[1.5px] ${
                 repoUrl && !isValidUrl ? "border-red-500" : "border-white/10"
-              } bg-transparent py-2 pl-3 pr-36 text-green-50 placeholder-white/20 outline-none transition-all hover:border-white/20 focus:border-white/30`}
+              } bg-transparent py-2 pl-3 pr-36 text-green-50 placeholder-white/20 outline-none transition-all hover:border-white/20 focus:border-white/30 ${
+                isSubmitting || isGenerating ? "cursor-not-allowed" : ""
+              }`}
               disabled={isSubmitting || isGenerating}
             />
             <div className="absolute inset-y-0 right-0 flex items-center pr-4">
@@ -306,6 +308,10 @@ export default function Component({
                   placeholder="Personal Access Token"
                   className={`w-full appearance-none rounded-lg border-[1.5px] border-white/10 bg-transparent py-2 px-3 text-white placeholder-white/20 outline-none transition-all hover:border-white/20 focus:border-white/30 ${
                     !isPrivate ? "opacity-30" : ""
+                  } ${
+                    !isPrivate || isSubmitting || isGenerating
+                      ? "cursor-not-allowed"
+                      : ""
                   }`}
                   disabled={!isPrivate || isSubmitting || isGenerating}
                 />
