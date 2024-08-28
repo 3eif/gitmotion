@@ -266,12 +266,22 @@ async fn process_gource(
     } else {
         None
     };
+
     log_message(
         log::Level::Info,
         "Attempting to clone repository",
         Some(&job_id_clone),
     );
-    clone_repository(&repo_url, temp_dir.path(), decrypted_token.as_deref())?;
+
+    // Offload the blocking clone operation to a separate thread
+    let temp_dir_path = temp_dir.path().to_path_buf();
+    let repo_url_clone = repo_url.clone();
+    let clone_result = tokio::task::spawn_blocking(move || {
+        clone_repository(&repo_url_clone, &temp_dir_path, decrypted_token.as_deref())
+    })
+    .await
+    .map_err(|_| GourceError::CloneFailed)??;
+
     let clone_duration = clone_start.elapsed();
     log_message(
         log::Level::Info,
@@ -591,7 +601,7 @@ fn generate_gource_visualization(
         --max-user-speed 500 \
         --output-framerate 30 \
         --multi-sampling \
-        --bloom-intensity 0.2 \
+        --bloom-intensity 0.5 \
         --user-scale 0.75 \
         --elasticity 0.01 \
         --background-colour 000000 \
