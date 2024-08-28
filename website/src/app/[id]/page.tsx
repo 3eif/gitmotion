@@ -1,7 +1,6 @@
 "use client";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import ExampleGenerations from "@/components/example-generations";
 import GourceInput, { GourceSettings } from "@/components/gource-input";
 import { ProgressStep } from "@/components/gource-progress";
 import GourceVideo from "@/components/gource-video";
@@ -212,44 +211,39 @@ export default function Page() {
   };
 
   return (
-    <>
-      <div className="">
-        {isInitialLoading ? (
-          <LoadingIndicator />
-        ) : (
-          <div className="w-full mx-auto pt-2 pb-5">
-            <GourceInput
-              onSubmit={onSubmit}
-              onCancel={async () => {
-                try {
-                  const response = await fetch(`/api/gource/stop/${jobId}`, {
-                    method: "GET",
-                  });
-                  if (!response.ok) {
-                    throw new Error("Failed to cancel job");
-                  }
-                  setIsGenerationInProgress(false);
-                } catch (error) {
-                  console.error("Error cancelling job:", error);
+    <div className="">
+      {isInitialLoading ? (
+        <LoadingIndicator />
+      ) : (
+        <div className="w-full mx-auto pt-2 pb-5">
+          <GourceInput
+            onSubmit={onSubmit}
+            onCancel={async () => {
+              try {
+                const response = await fetch(`/api/gource/stop/${jobId}`, {
+                  method: "GET",
+                });
+                if (!response.ok) {
+                  throw new Error("Failed to cancel job");
                 }
-              }}
-              isLoading={isLoading}
-              isGenerating={isGenerationInProgress}
-              initialUrl={repoUrl}
-              initialSettings={settings}
-            />
-          </div>
-        )}
-        <GourceVideo
-          jobStatus={lastValidJobStatus}
-          jobId={jobId}
-          error={error}
-          videoRef={videoRef}
-        />
-      </div>
-      <div className="px-8 max-w-7xl mx-auto">
-        <ExampleGenerations />
-      </div>
-    </>
+                setIsGenerationInProgress(false);
+              } catch (error) {
+                console.error("Error cancelling job:", error);
+              }
+            }}
+            isLoading={isLoading}
+            isGenerating={isGenerationInProgress}
+            initialUrl={repoUrl}
+            initialSettings={settings}
+          />
+        </div>
+      )}
+      <GourceVideo
+        jobStatus={lastValidJobStatus}
+        jobId={jobId}
+        error={error}
+        videoRef={videoRef}
+      />
+    </div>
   );
 }
