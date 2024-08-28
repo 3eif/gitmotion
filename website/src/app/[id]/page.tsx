@@ -102,8 +102,8 @@ export default function Page() {
     fetcher,
     {
       refreshInterval: 5000,
-      revalidateOnFocus: false, // Disable revalidation on focus
-      revalidateOnReconnect: true, // Enable revalidation on reconnect
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
       dedupingInterval: 1000,
       onSuccess: (data) => {
         if (data) {
@@ -127,6 +127,16 @@ export default function Page() {
       },
     }
   );
+
+  useEffect(() => {
+    if (shouldPoll) {
+      const interval = setInterval(() => {
+        mutate();
+      }, 5000);
+
+      return () => clearInterval(interval);
+    }
+  }, [shouldPoll, mutate]);
 
   useEffect(() => {
     if (jobStatus) {
