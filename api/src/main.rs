@@ -635,7 +635,7 @@ fn generate_gource_visualization(
         ffmpeg -y -r 30 -f image2pipe -vcodec ppm -i - \
         -vcodec libx264 -preset fast -crf 23 -movflags +faststart \
         -pix_fmt yuv420p -vf \"pad=ceil(iw/2)*2:ceil(ih/2)*2\" \
-        -acodec aac -b:a 128k \
+        -acodec aac -b:a 128k -profile:v main \
         {}",
         output_file.to_str().unwrap()
     ));
