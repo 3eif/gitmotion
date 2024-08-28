@@ -14,7 +14,7 @@ const fontSans = FontSans({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.URL ?? "http://localhost:3000/"),
+  metadataBase: new URL(process.env.URL ?? "https://gitmotion.app"),
   title: "Gitmotion",
   description:
     "Generate beautiful visualizations of your Git history right from your browser.",
