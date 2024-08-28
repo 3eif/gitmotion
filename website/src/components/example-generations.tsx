@@ -41,27 +41,39 @@ const VideoItem = ({
 
 const videos = [
   {
-    src: "/gource.mp4",
-    poster: "/video-placeholder.jpg",
+    src: "/example-generations/apple_swift.mp4",
+    poster: "/example-generations/apple_swift.png",
+    title: "apple/swift",
+    repoUrl: "https://github.com/apple/swift",
+    commits: "170,000+",
+  },
+  {
+    src: "/example-generations/serenityos_serenity.mp4",
+    poster: "/example-generations/serenityos_serenity.png",
+    title: "SerenityOS/serenity",
+    repoUrl: "https://github.com/SerenityOS/serenity",
+    commits: "62,000+",
+  },
+  {
+    src: "/example-generations/facebook_react.mp4",
+    poster: "/example-generations/facebook_react.png",
     title: "facebook/react",
     repoUrl: "https://github.com/facebook/react",
     commits: "19,000+",
   },
   {
-    src: "/gource.mp4",
-    poster: "/video-placeholder.jpg",
-    title: "apple/swift",
-    repoUrl: "https://github.com/apple/swift",
-    commits: "170,000+",
+    src: "/example-generations/3eif_gitmotion.mp4",
+    poster: "/example-generations/3eif_gitmotion.png",
+    title: "3eif/gitmotion",
+    repoUrl: "https://github.com/3eif/gitmotion",
+    commits: "90+",
   },
 ];
 
 export default function ExampleGenerations() {
   return (
-    <div className="flex flex-col mx-auto w-full pt-10 space-y-8">
-      <h2 className="text-2xl font-semibold text-left mt-10">
-        Example Generations
-      </h2>
+    <div className="flex flex-col mx-auto w-full pt-11 space-y-5">
+      <h2 className="text-2xl font-semibold text-left">Example Generations</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
         {videos.map((video, index) => (
           <VideoItem key={index} {...video} />
