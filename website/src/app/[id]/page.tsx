@@ -2,11 +2,9 @@
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import ExampleGenerations from "@/components/example-generations";
-import Footer from "@/components/footer";
 import GourceInput, { GourceSettings } from "@/components/gource-input";
 import { ProgressStep } from "@/components/gource-progress";
 import GourceVideo from "@/components/gource-video";
-import { ChevronDownIcon } from "@heroicons/react/16/solid";
 import { useState, useRef, useEffect } from "react";
 import useSWR from "swr";
 import { Icons } from "@/components/ui/icons";
@@ -42,39 +40,13 @@ const fetcher = async (url: string) => {
   return data;
 };
 
-const ArrowButton = ({
-  onClick,
-  isVisible,
-}: {
-  onClick: () => void;
-  isVisible: boolean;
-}) => (
-  <div
-    className={`fixed bottom-8 left-1/2 transform -translate-x-1/2 text-center transition-opacity duration-300 ${
-      isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-    }`}
-  >
-    <button
-      onClick={onClick}
-      className="flex flex-col items-center text-neutral-400 hover:text-neutral-300 transition duration-300 ease-in-out"
-      aria-label="Scroll to example generations"
-    >
-      <p className="mb-1">View Examples</p>
-      <ChevronDownIcon className="h-8 w-8" />
-    </button>
-  </div>
-);
-
 export default function Page() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const router = useRouter();
   const jobId = params.id as string;
 
   const [repoUrl, setRepoUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isArrowVisible, setIsArrowVisible] = useState(true);
-  const [hasScrolled, setHasScrolled] = useState(false);
   const [lastValidJobStatus, setLastValidJobStatus] =
     useState<JobStatus | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -91,7 +63,6 @@ export default function Page() {
   });
 
   const videoRef = useRef<HTMLDivElement>(null);
-  const exampleGenerationsRef = useRef<HTMLDivElement>(null);
 
   const {
     data: jobStatus,
@@ -144,7 +115,6 @@ export default function Page() {
       if (jobStatus.video_url && videoRef.current) {
         smoothScrollTo(videoRef.current, 850);
         setIsJobCompleted(true);
-        setIsArrowVisible(false);
         setShouldPoll(false);
       }
     }
@@ -158,22 +128,6 @@ export default function Page() {
       );
     }
   }, [jobStatus]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollPosition = window.scrollY;
-
-      if (scrollPosition > 100 && !hasScrolled) {
-        setHasScrolled(true);
-        setIsArrowVisible(false);
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    handleScroll();
-
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [hasScrolled]);
 
   useEffect(() => {
     let title = "Gitmotion";
@@ -194,7 +148,6 @@ export default function Page() {
   ) {
     setIsLoading(true);
     setIsGenerationInProgress(true);
-    setIsArrowVisible(true);
     try {
       console.log("Submitting repo URL:", githubUrl);
       const response = await fetch("/api/gource/start", {
@@ -258,21 +211,6 @@ export default function Page() {
     requestAnimationFrame(animation);
   };
 
-  const scrollToExampleGenerations = () => {
-    if (exampleGenerationsRef.current) {
-      smoothScrollTo(exampleGenerationsRef.current, 850);
-      setIsArrowVisible(false);
-      setHasScrolled(true);
-    }
-  };
-
-  const isGenerating =
-    lastValidJobStatus &&
-    !lastValidJobStatus.video_url &&
-    !lastValidJobStatus.error;
-
-  const shouldShowArrow = isArrowVisible && !lastValidJobStatus?.video_url;
-
   return (
     <>
       <div className="">
@@ -309,11 +247,7 @@ export default function Page() {
           videoRef={videoRef}
         />
       </div>
-      <ArrowButton
-        onClick={scrollToExampleGenerations}
-        isVisible={shouldShowArrow}
-      />
-      <div ref={exampleGenerationsRef} className="px-8 max-w-7xl mx-auto">
+      <div className="px-8 max-w-7xl mx-auto">
         <ExampleGenerations />
       </div>
     </>

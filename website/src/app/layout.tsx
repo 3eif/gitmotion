@@ -7,6 +7,7 @@ import { Noise } from "@/components/background-noise";
 import Footer from "@/components/footer";
 import { ChevronDownIcon } from "@heroicons/react/16/solid";
 import VisualizationsCount from "@/components/visualizations-count";
+import ExampleGenerations from "@/components/example-generations";
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -47,29 +48,6 @@ export const metadata: Metadata = {
   },
 };
 
-const ArrowButton = ({
-  onClick,
-  isVisible,
-}: {
-  onClick: () => void;
-  isVisible: boolean;
-}) => (
-  <div
-    className={`fixed bottom-8 left-1/2 transform -translate-x-1/2 text-center transition-opacity duration-300 ${
-      isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-    }`}
-  >
-    <button
-      onClick={onClick}
-      className="flex flex-col items-center text-neutral-400 hover:text-neutral-300 transition duration-300 ease-in-out"
-      aria-label="Scroll to example generations"
-    >
-      <p className="mb-1">View Examples</p>
-      <ChevronDownIcon className="h-8 w-8" />
-    </button>
-  </div>
-);
-
 export default function RootLayout({
   children,
 }: {
@@ -90,7 +68,7 @@ export default function RootLayout({
           fontSans.variable
         )}
       >
-        <div className="flex min-h-screen flex-col items-center justify-center gap-7 pt-20 pb-20 mx-auto">
+        <div className="flex min-h-screen flex-col items-center justify-center gap-7 pt-20 pb-8 mx-auto">
           <div className="flex flex-col items-center justify-center text-center mx-auto w-full max-w-7xl">
             <div className="w-full space-y-5 duration-1000 ease-in-out animate-in fade-in slide-in-from-top-5">
               <VisualizationsCount />
@@ -102,6 +80,9 @@ export default function RootLayout({
                 right in your browser.
               </p>
               {children}
+              <div className="px-8 max-w-7xl mx-auto">
+                <ExampleGenerations />
+              </div>
             </div>
           </div>
         </div>
