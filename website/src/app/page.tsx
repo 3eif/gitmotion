@@ -121,7 +121,7 @@ export default function Page() {
 
   return (
     <>
-      <div className="w-full max-w-xl mx-auto pt-2 pb-3">
+      <div className="w-full mx-auto pt-2 pb-3">
         <GourceInput
           onSubmit={onSubmit}
           onCancel={async () => {}} // Add an empty onCancel function
