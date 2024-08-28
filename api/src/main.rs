@@ -601,7 +601,7 @@ fn generate_gource_visualization(
         --max-user-speed 500 \
         --output-framerate 30 \
         --multi-sampling \
-        --bloom-intensity 0.5 \
+        --bloom-intensity 0.35 \
         --user-scale 0.75 \
         --elasticity 0.01 \
         --background-colour 000000 \

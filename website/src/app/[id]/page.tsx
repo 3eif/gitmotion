@@ -102,7 +102,8 @@ export default function Page() {
     fetcher,
     {
       refreshInterval: 5000,
-      revalidateOnFocus: true,
+      revalidateOnFocus: false, // Disable revalidation on focus
+      revalidateOnReconnect: true, // Enable revalidation on reconnect
       dedupingInterval: 1000,
       onSuccess: (data) => {
         if (data) {
@@ -112,7 +113,6 @@ export default function Page() {
           setSettings(data.settings);
           if (data.video_url || data.error) {
             setIsJobCompleted(true);
-            //setShouldPoll(false);
             setIsGenerationInProgress(false);
           } else {
             setIsGenerationInProgress(true);
