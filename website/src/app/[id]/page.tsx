@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import GourceInput, { GourceSettings } from "@/components/gource-input";
 import { ProgressStep } from "@/components/gource-progress";
 import GourceVideo from "@/components/gource-video";
@@ -52,6 +52,7 @@ export default function Page() {
   const [isJobCompleted, setIsJobCompleted] = useState(false);
   const [shouldPoll, setShouldPoll] = useState(true);
   const [isGenerationInProgress, setIsGenerationInProgress] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState<GourceSettings>({
     show_file_extension_key: false,
     show_usernames: true,
@@ -65,7 +66,7 @@ export default function Page() {
 
   const {
     data: jobStatus,
-    error,
+    error: errorFromSWR,
     mutate,
   } = useSWR<JobStatus>(
     jobId && shouldPoll ? `/api/gource/status/${jobId}` : null,
@@ -147,6 +148,7 @@ export default function Page() {
   ) {
     setIsLoading(true);
     setIsGenerationInProgress(true);
+    setError(null);
     try {
       console.log("Submitting repo URL:", githubUrl);
       const response = await fetch("/api/gource/start", {
@@ -160,10 +162,10 @@ export default function Page() {
           settings: newSettings || settings,
         }),
       });
-      if (!response.ok) {
-        throw new Error("Failed to start Gource generation");
-      }
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to start Gource generation");
+      }
       console.log("Received job ID:", data.job_id);
 
       router.push(`/${data.job_id}`);
@@ -180,6 +182,9 @@ export default function Page() {
     } catch (error) {
       console.error("Failed to start Gource generation:", error);
       setIsGenerationInProgress(false);
+      setError(
+        error instanceof Error ? error.message : "An unexpected error occurred"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -229,6 +234,11 @@ export default function Page() {
                 setIsGenerationInProgress(false);
               } catch (error) {
                 console.error("Error cancelling job:", error);
+                setError(
+                  error instanceof Error
+                    ? error.message
+                    : "An unexpected error occurred"
+                );
               }
             }}
             isLoading={isLoading}
@@ -236,12 +246,15 @@ export default function Page() {
             initialUrl={repoUrl}
             initialSettings={settings}
           />
+          {error && (
+            <div className="text-red-500 text-center mt-7">{error}</div>
+          )}
         </div>
       )}
       <GourceVideo
         jobStatus={lastValidJobStatus}
         jobId={jobId}
-        error={error}
+        error={errorFromSWR || error}
         videoRef={videoRef}
       />
     </div>

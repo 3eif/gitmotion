@@ -4,8 +4,8 @@ import redis from "@/lib/redis.ts";
 import crypto from "crypto";
 import { GourceSettings } from "@/components/gource-input";
 
-const RATE_LIMIT = 20;
-const RATE_LIMIT_WINDOW = 60 * 60;
+const RATE_LIMIT = 10;
+const RATE_LIMIT_WINDOW = 6 * 60 * 60; // 6 hours
 
 function encryptToken(token: string): string {
   const algorithm = "aes-256-ctr";
@@ -92,50 +92,50 @@ async function sendRequestToRustServer(
 }
 
 export async function POST(request: NextRequest) {
-  // try {
-  //   const ip = request.headers.get("x-forwarded-for") || "unknown";
+  try {
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
 
-  //   const { success, limit, reset, remaining } = await checkRateLimit(ip);
+    const { success, limit, reset, remaining } = await checkRateLimit(ip);
 
-  //   if (!success) {
-  //     console.log("Rate limit exceeded");
-  //     return NextResponse.json(
-  //       {
-  //         error:
-  //           "You've generated too many requests for the day. Try again in a few hours. Send me an email at seifaziz10@gmail.com if you would pay for a higher rate limit.",
-  //       },
-  //       {
-  //         status: 429,
-  //         headers: {
-  //           "X-RateLimit-Limit": limit.toString(),
-  //           "X-RateLimit-Remaining": remaining.toString(),
-  //           "X-RateLimit-Reset": reset.toString(),
-  //         },
-  //       }
-  //     );
-  //   }
+    if (!success) {
+      console.log("Rate limit exceeded");
+      return NextResponse.json(
+        {
+          error:
+            "You've generated too many requests for the day. Try again in a few hours. Send me an email at seifaziz10@gmail.com if you would like a higher rate limit.",
+        },
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Limit": limit.toString(),
+            "X-RateLimit-Remaining": remaining.toString(),
+            "X-RateLimit-Reset": reset.toString(),
+          },
+        }
+      );
+    }
 
-  const { repo_url, access_token, settings } = await request.json();
+    const { repo_url, access_token, settings } = await request.json();
 
-  let encryptedToken;
-  if (access_token) {
-    encryptedToken = encryptToken(access_token);
+    let encryptedToken;
+    if (access_token) {
+      encryptedToken = encryptToken(access_token);
+    }
+
+    const count = await redis.get("generations");
+    await redis.set("generations", Number(count) + 1);
+
+    const data = await sendRequestToRustServer(
+      repo_url,
+      encryptedToken,
+      settings
+    );
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("Error starting Gource job:", error);
+    return NextResponse.json(
+      { error: "Failed to start Gource job" },
+      { status: 500 }
+    );
   }
-
-  const count = await redis.get("generations");
-  await redis.set("generations", Number(count) + 1);
-
-  const data = await sendRequestToRustServer(
-    repo_url,
-    encryptedToken,
-    settings
-  );
-  return NextResponse.json(data);
-  // } catch (error) {
-  //   console.error("Error starting Gource job:", error);
-  //   return NextResponse.json(
-  //     { error: "Failed to start Gource job" },
-  //     { status: 500 }
-  //   );
-  // }
 }
