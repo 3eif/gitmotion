@@ -1,4 +1,9 @@
-# Gitmotion
+<p align="center">
+  <img src="/website/public/gitmotion.png" height="128">
+  <h1 align="center">Gitmotion</h1>
+</p>
+
+[Gitmotion](https://gitmotion.app/) lets you generate visualizations of your Git repositories right from your browser.
 
 ## Prerequisites
 
