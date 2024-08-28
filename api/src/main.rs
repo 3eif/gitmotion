@@ -68,7 +68,7 @@ struct GourceSettings {
 enum GourceError {
     #[error("Invalid URL")]
     InvalidUrl,
-    #[error("Only GitHub repositories are supported")]
+    #[error("Only private GitHub repositories are supported")]
     UnsupportedRepository,
     #[error("Failed to create temporary directory")]
     TempDirCreationFailed,
@@ -210,7 +210,9 @@ async fn process_gource(
 
     let url = Url::parse(&repo_url).map_err(|_| GourceError::InvalidUrl)?;
     if url.host_str() != Some("github.com") {
-        return Err(GourceError::UnsupportedRepository);
+        if access_token.is_some() {
+            return Err(GourceError::UnsupportedRepository);
+        }
     }
     log_message(
         log::Level::Info,
