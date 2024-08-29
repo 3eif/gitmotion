@@ -3,12 +3,7 @@
   <h1 align="center">Gitmotion</h1>
 </p>
 
-<p align="center">
-  <video width="100%" controls>
-    <source src="/website/public/gitmotion.app.mp4" type="video/mp4">
-    Your browser does not support the video tag.
-  </video>
-</p>
+https://github.com/user-attachments/assets/08e623ca-8806-45a0-b35b-30564713160f
 
 [Gitmotion](https://gitmotion.app/) lets you generate visualizations of your Git repositories right from your browser.
 
