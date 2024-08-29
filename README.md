@@ -26,6 +26,7 @@ https://github.com/user-attachments/assets/08e623ca-8806-45a0-b35b-30564713160f
 - Docker
 - Docker Compose (optional, for easier management)
 - Node.js
+- Rust
 - Bun
 
 ### Running the API
