@@ -5,14 +5,26 @@
 
 [Gitmotion](https://gitmotion.app/) lets you generate visualizations of your Git repositories right from your browser.
 
-## Prerequisites
+## Tech Stack
+
+- [Next.js](https://nextjs.org/) – website framework
+- [Tailwind](https://tailwindcss.com/) – CSS
+- [FFmpeg](https://ffmpeg.org/) – video rendering
+- [Gource](https://gource.io/) – software version control visualization
+- [Redis](https://redis.io/) – in-memory storage
+- [Docker](https://www.docker.com/) – containerization
+- [Bun](https://bun.sh/) – JavaScript runtime
+
+## Getting Started
+
+### Prerequisites
 
 - Docker
 - Docker Compose (optional, for easier management)
 - Node.js
 - Bun
 
-## Running the API
+### Running the API
 
 1. Clone the repository:
 
@@ -39,7 +51,7 @@ docker compose build
 docker compose up
 ```
 
-## Running the Website
+### Running the Website
 
 1. Change directory
 
