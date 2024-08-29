@@ -18,12 +18,12 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.URL ?? "https://gitmotion.app"),
   title: "Gitmotion",
   description:
-    "Generate beautiful visualizations of your Git history right from your browser.",
+    "Generate beautiful visualizations of your Git repo history right from your browser.",
   applicationName: "Gitmotion",
   openGraph: {
     title: "Gitmotion",
     description:
-      "Generate beautiful visualizations of your Git history right from your browser.",
+      "Generate beautiful visualizations of your Git repo history right from your browser.",
     url: "https://gitmotion.app",
     type: "website",
     images: [
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Gitmotion",
     description:
-      "Generate beautiful visualizations of your Git history right from your browser.",
+      "Generate beautiful visualizations of your Git repo history right from your browser.",
     images: [
       {
         url: "/og.png",
@@ -81,8 +81,8 @@ export default function RootLayout({
                 </a>
               </h1>
               <p className="font-normal text-lg text-neutral-300 max-w-xl text-center mx-auto px-8">
-                Generate beautiful visualizations of your Git repository history
-                right in your browser.
+                Generate beautiful visualizations of your Git repo history right
+                in your browser.
               </p>
               {children}
               <div className="px-8 max-w-7xl mx-auto">

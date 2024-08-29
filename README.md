@@ -14,6 +14,8 @@
 - [Redis](https://redis.io/) – in-memory storage
 - [Docker](https://www.docker.com/) – containerization
 - [Bun](https://bun.sh/) – JavaScript runtime
+- [Actix Web](https://actix.rs/) – api framework
+- [Tokio](https://tokio.rs/) – asynchronous runtime
 
 ## Getting Started
 
