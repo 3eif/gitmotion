@@ -113,7 +113,7 @@ export default function Page() {
     if (jobStatus) {
       console.log("Job Status:", jobStatus);
       if (jobStatus.video_url && videoRef.current) {
-        smoothScrollTo(videoRef.current, 850);
+        smoothScrollTo(videoRef.current, 1000);
         setIsJobCompleted(true);
         setShouldPoll(false);
       }

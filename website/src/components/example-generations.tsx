@@ -12,9 +12,9 @@ const VideoItem = ({
   commits: string;
 }) => (
   <div className="flex flex-col">
-    <div className="rounded-xl border-[1.5px] border-white/10 bg-black overflow-hidden">
+    <div className="rounded-xl border-[1.5px] border-white/10 bg-black overflow-hidden aspect-[16/10]">
       <video
-        className="w-full h-auto"
+        className="w-full h-full object-cover"
         controls
         muted
         playsInline
