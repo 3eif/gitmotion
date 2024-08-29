@@ -44,11 +44,8 @@ export default function GourceVideo({
           )}
           {jobStatus.step === ProgressStep.GeneratingVisualization &&
             jobStatus.video_url && (
-              <div className="py-6 max-w-7xl p-8 mx-auto">
-                <div
-                  ref={videoRef}
-                  className="rounded-xl border-[1.5px] border-white/10 bg-black overflow-hidden relative"
-                >
+              <div ref={videoRef} className="py-6 max-w-7xl p-8 mx-auto">
+                <div className="rounded-xl border-[1.5px] border-white/10 bg-black overflow-hidden relative">
                   <button
                     onClick={handleDownload}
                     className="absolute top-3 right-3

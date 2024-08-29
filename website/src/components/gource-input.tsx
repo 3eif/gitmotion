@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState, useCallback } from "react";
+import { FormEvent, useEffect, useState, useCallback, useRef } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
@@ -57,6 +57,8 @@ export default function Component({
     }
   );
 
+  const inputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (initialSettings) {
       setSettings(initialSettings);
@@ -74,6 +76,12 @@ export default function Component({
       setRepoUrl(initialUrl);
     }
   }, [initialUrl]);
+
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -114,6 +122,7 @@ export default function Component({
         <form onSubmit={handleSubmit} className="space-y-4 w-full">
           <div className="relative">
             <input
+              ref={inputRef}
               type="text"
               value={repoUrl}
               onChange={(e) => setRepoUrl(e.target.value)}
@@ -124,6 +133,7 @@ export default function Component({
                 isSubmitting || isGenerating ? "cursor-not-allowed" : ""
               }`}
               disabled={isSubmitting || isGenerating}
+              autoFocus
             />
             <div className="absolute inset-y-0 right-0 flex items-center pr-4">
               <Popover open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>

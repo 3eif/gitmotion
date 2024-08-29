@@ -72,11 +72,14 @@ export default function RootLayout({
           <div className="flex flex-col items-center justify-center text-center mx-auto w-full max-w-7xl">
             <div className="w-full space-y-5 duration-1000 ease-in-out animate-in fade-in slide-in-from-top-5">
               <VisualizationsCount />
-              <a href="/">
-                <h1 className="mt-5 text-4xl md:text-7xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-b from-neutral-50 to-neutral-500 bg-opacity-50">
+              <h1 className="mt-5 text-4xl md:text-7xl font-bold text-center">
+                <a
+                  href="/"
+                  className="bg-clip-text text-transparent bg-gradient-to-b from-neutral-50 to-neutral-500 bg-opacity-50"
+                >
                   Gitmotion
-                </h1>
-              </a>
+                </a>
+              </h1>
               <p className="font-normal text-lg text-neutral-300 max-w-xl text-center mx-auto px-8">
                 Generate beautiful visualizations of your Git repository history
                 right in your browser.

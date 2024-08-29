@@ -716,9 +716,11 @@ async fn serve_video(req: HttpRequest, job_id: web::Path<String>) -> Result<Http
     }
 }
 
-async fn clear_gource_videos() {
+async fn clear_gource_videos(job_store: web::Data<JobStore>) {
     let path = Path::new("/gource_videos");
     let one_hour_ago = SystemTime::now() - Duration::from_secs(3600);
+
+    let mut jobs_to_remove = Vec::new();
 
     if let Err(e) = fs::read_dir(path).and_then(|entries| {
         entries
@@ -747,6 +749,17 @@ async fn clear_gource_videos() {
                         &format!("Removed file: {:?}", file_path),
                         None,
                     );
+
+                    if let Some(file_name) = file_path.file_name() {
+                        if let Some(file_name_str) = file_name.to_str() {
+                            if let Some(job_id) = file_name_str
+                                .strip_prefix("gource_")
+                                .and_then(|s| s.strip_suffix(".mp4"))
+                            {
+                                jobs_to_remove.push(job_id.to_string());
+                            }
+                        }
+                    }
                 }
                 Ok(())
             })
@@ -756,6 +769,17 @@ async fn clear_gource_videos() {
             &format!("Failed to process directory: {}", e),
             None,
         );
+    }
+
+    let mut store = job_store.lock().await;
+    for job_id in jobs_to_remove {
+        if store.remove(&job_id).is_some() {
+            log_message(
+                log::Level::Info,
+                &format!("Removed job status for job_id: {}", job_id),
+                None,
+            );
+        }
     }
 }
 
@@ -795,11 +819,12 @@ async fn main() -> std::io::Result<()> {
     let job_store = web::Data::new(JobStore::default());
 
     // Set up periodic task to clear gource_videos
-    tokio::spawn(async {
+    let job_store_clone = job_store.clone();
+    tokio::spawn(async move {
         let mut interval = interval(Duration::from_secs(3600)); // 1 hour
         loop {
             interval.tick().await;
-            clear_gource_videos().await;
+            clear_gource_videos(job_store_clone.clone()).await;
         }
     });
 
