@@ -209,7 +209,8 @@ async fn process_gource(
     );
 
     let url = Url::parse(&repo_url).map_err(|_| GourceError::InvalidUrl)?;
-    if url.host_str() != Some("github.com") {
+    let host = url.host_str().unwrap_or("");
+    if !host.ends_with("github.com") {
         if access_token.is_some() {
             return Err(GourceError::UnsupportedRepository);
         }
