@@ -30,6 +30,11 @@ const fetcher = async (url: string) => {
     },
   });
   if (!res.ok) {
+    if (res.status === 404) {
+      throw new Error(
+        "Job not found. The video you're looking for most likely expired."
+      );
+    }
     throw new Error("An error occurred while fetching the data.");
   }
   const data = await res.json();
