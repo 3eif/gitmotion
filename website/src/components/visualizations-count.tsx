@@ -1,5 +1,7 @@
 import redis from "@/lib/redis.ts";
 
+export const revalidate = 43200; // 12 hours in seconds
+
 export default async function VisualizationsCount() {
   const count = await redis.get("generations");
 
